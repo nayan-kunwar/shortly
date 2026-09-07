@@ -27,6 +27,10 @@ Naming scheme: `milestone/<N>-<short-name>` (lowercase, hyphens).
 | 4         | `milestone/4-redirect`        |
 | 5         | `milestone/5-redis`           |
 
+Exception: Milestone 0 is always project setup (toolchain, configs, health
+check — no product code) and is committed directly to `main`. Every milestone
+after M0 gets its own `milestone/<N>-<short-name>` branch.
+
 ## Rule 3: commit message format
 
 ```

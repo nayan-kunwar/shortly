@@ -1,0 +1,23 @@
+# Milestone 1: PostgreSQL only. M16 expands this file with
+# redis, rabbitmq, api and nginx services.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: shortly-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-shortly}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shortly}
+      POSTGRES_DB: ${POSTGRES_DB:-shortly}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER:-shortly}']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
