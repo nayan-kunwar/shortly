@@ -10,5 +10,12 @@ export default defineConfig({
     env: {
       BASE_URL: 'http://localhost:3000',
     },
+    // Integration suites share one PostgreSQL and TRUNCATE between tests,
+    // so files must not run in parallel workers — a truncate in file A
+    // would wipe rows file B just created. Sequential files, fast enough.
+    pool: 'forks',
+    poolOptions: {
+      forks: { singleFork: true },
+    },
   },
 });
