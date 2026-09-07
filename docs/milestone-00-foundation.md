@@ -1,5 +1,9 @@
 # Milestone 0 — Foundation
 
+> Convention: Milestone 0 is always project setup (toolchain, configs, health
+> check) — no product code. It is committed directly to `main`; every later
+> milestone gets its own `milestone/<N>-<short-name>` branch.
+
 ## What was built
 
 Minimal Express 5 + TypeScript (strict, ESM/NodeNext) backend with `GET /health`, Zod-validated env, Vitest+Supertest, ESLint flat + Prettier.
