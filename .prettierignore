@@ -1,0 +1,8 @@
+dist
+coverage
+node_modules
+package-lock.json
+.env
+*.log
+.DS_Store
+AGENTS.md
