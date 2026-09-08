@@ -1,5 +1,7 @@
 import { env } from '../config/env.js';
 import { ConflictError } from '../errors/conflict-error.js';
+import { GoneError } from '../errors/gone-error.js';
+import { NotFoundError } from '../errors/not-found-error.js';
 import type { UrlRepository } from '../repositories/url.repository.js';
 import { encodeBase62 } from '../utils/base62.js';
 import type { CreateUrlRequest } from '../validators/url.validator.js';
@@ -46,6 +48,26 @@ export class UrlService {
       encodeBase62,
     );
     return this.toResponse(created.shortCode, created.originalUrl);
+  }
+
+  /**
+   * Resolve a short code to its destination for the redirect path.
+   * Expiry is lazy: checked here on every hit (no cron, no TTL sweeper yet).
+   * Throws NotFoundError (unknown) or GoneError (deactivated/expired) —
+   * the controller maps them to 404/410.
+   */
+  async resolveUrl(shortCode: string): Promise<{ originalUrl: string }> {
+    const record = await this.repo.findByShortCode(shortCode);
+    if (record === null) {
+      throw new NotFoundError(`Unknown short code: ${shortCode}`);
+    }
+    if (!record.isActive) {
+      throw new GoneError('deactivated');
+    }
+    if (record.expiresAt !== null && record.expiresAt.getTime() <= Date.now()) {
+      throw new GoneError('expired');
+    }
+    return { originalUrl: record.originalUrl };
   }
 
   private toResponse(shortCode: string, originalUrl: string): CreatedUrl {

@@ -19,6 +19,25 @@ export function createUrlsController(service: UrlService) {
         next(err);
       }
     },
+
+    /**
+     * GET /:shortCode. 302 + Location on success; 404/410 via the error
+     * handler. 302 (not 301): links are temporary by design (they can
+     * expire/deactivate), and every click must reach us for counting.
+     */
+    async redirect(req: Request, res: Response, next: NextFunction): Promise<void> {
+      try {
+        const shortCode = req.params['shortCode'];
+        if (typeof shortCode !== 'string' || shortCode.length === 0) {
+          res.status(404).json({ error: 'NotFound', message: 'Missing short code' });
+          return;
+        }
+        const { originalUrl } = await service.resolveUrl(shortCode);
+        res.redirect(302, originalUrl);
+      } catch (err) {
+        next(err);
+      }
+    },
   };
 }
 
