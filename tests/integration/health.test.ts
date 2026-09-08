@@ -1,6 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
+import { closeRedis } from '../../src/redis/client.js';
+
+afterAll(async () => {
+  // createApp wires the Redis singleton even for non-DB routes.
+  await closeRedis();
+});
 
 describe('GET /health', () => {
   it('returns 200 with status ok', async () => {

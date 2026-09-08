@@ -2,18 +2,25 @@ import cors from 'cors';
 import express, { type Application, type NextFunction, type Request, type Response } from 'express';
 import { ZodError } from 'zod';
 import { createUrlsController } from './controllers/urls.controller.js';
+import { UrlCache } from './cache/url-cache.js';
 import { db } from './db/db.js';
 import { env } from './config/env.js';
 import { ConflictError } from './errors/conflict-error.js';
 import { GoneError } from './errors/gone-error.js';
 import { NotFoundError } from './errors/not-found-error.js';
 import { UrlRepository } from './repositories/url.repository.js';
+import { getRedis } from './redis/client.js';
 import { healthRouter } from './routes/health.js';
 import { createRedirectRouter } from './routes/redirect.js';
 import { createUrlsRouter } from './routes/urls.js';
 import { UrlService } from './services/url.service.js';
 
-export function createApp(): Application {
+export interface AppDeps {
+  /** Override the redirect cache (tests inject broken/observed instances). */
+  cache?: UrlCache;
+}
+
+export function createApp(deps: AppDeps = {}): Application {
   const app = express();
 
   app.disable('x-powered-by');
@@ -42,7 +49,7 @@ export function createApp(): Application {
 
   // Route → Controller → Service → Repository → PostgreSQL.
   // Wired here (composition root) so handlers stay constructible in tests.
-  const urlService = new UrlService(new UrlRepository(db));
+  const urlService = new UrlService(new UrlRepository(db), deps.cache ?? new UrlCache(getRedis()));
   const urlsController = createUrlsController(urlService);
   app.use('/api/v1/urls', createUrlsRouter(urlsController));
 

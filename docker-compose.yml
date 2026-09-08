@@ -1,5 +1,6 @@
 # Milestone 1: PostgreSQL only. M16 expands this file with
 # redis, rabbitmq, api and nginx services.
+# Milestone 5: redis added (cache-aside for redirects).
 services:
   postgres:
     image: postgres:16-alpine
@@ -19,5 +20,20 @@ services:
       timeout: 3s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    container_name: shortly-redis
+    restart: unless-stopped
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
 volumes:
   pgdata:
+  redisdata:

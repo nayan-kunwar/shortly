@@ -3,19 +3,24 @@ import request from 'supertest';
 import { createApp } from '../../src/app.js';
 import { closeDb, pool } from '../../src/db/db.js';
 import { runMigrations } from '../../src/db/migrate.js';
+import { closeRedis, getRedis } from '../../src/redis/client.js';
+import { waitForRedis } from '../redis-ready.js';
 
-// Needs a real PostgreSQL: npm run db:up && npm run db:migrate
+// Needs real PostgreSQL + Redis: docker compose up -d postgres redis && npm run db:migrate
 
 beforeAll(async () => {
   await runMigrations(pool);
+  await waitForRedis();
 }, 30_000);
 
 beforeEach(async () => {
   await pool.query('TRUNCATE urls RESTART IDENTITY');
+  await getRedis().flushdb();
 });
 
 afterAll(async () => {
   await closeDb();
+  await closeRedis();
 });
 
 describe('POST /api/v1/urls', () => {

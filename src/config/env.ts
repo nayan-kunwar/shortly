@@ -10,6 +10,8 @@ const envSchema = z.object({
   // Dev frontend origin for CORS. Non-production only; production is
   // same-origin (or gateway-handled) and must not echo arbitrary origins.
   CORS_ORIGIN: z.string().url().default('http://localhost:3001'),
+  REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
+  REDIS_TTL: z.coerce.number().int().min(60).max(86400).default(3600),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

@@ -1,5 +1,7 @@
 import { createApp } from './app.js';
 import { env } from './config/env.js';
+import { closeDb } from './db/db.js';
+import { closeRedis } from './redis/client.js';
 
 const app = createApp();
 
@@ -16,7 +18,17 @@ function shutdown(signal: string): void {
       process.exitCode = 1;
       return;
     }
-    process.exitCode = 0;
+    void (async () => {
+      try {
+        await closeDb();
+        await closeRedis();
+      } catch (e: unknown) {
+        console.error('Error closing connections', e);
+        process.exitCode = 1;
+        return;
+      }
+      process.exitCode = 0;
+    })();
   });
   // Force-exit guard so a hanging socket cannot block deploys forever.
   setTimeout(() => {
