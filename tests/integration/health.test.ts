@@ -18,4 +18,13 @@ describe('GET /health', () => {
     expect(res.status).toBe(404);
     expect(res.body).toMatchObject({ error: 'NotFound' });
   });
+
+  it('echoes ACAO for the configured dev origin only', async () => {
+    const app = createApp();
+    const allowed = await request(app).get('/health').set('Origin', 'http://localhost:3001');
+    expect(allowed.headers['access-control-allow-origin']).toBe('http://localhost:3001');
+
+    const denied = await request(app).get('/health').set('Origin', 'http://evil.example');
+    expect(denied.headers['access-control-allow-origin']).toBeUndefined();
+  });
 });
