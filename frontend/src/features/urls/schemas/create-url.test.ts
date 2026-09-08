@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createUrlSchema } from './create-url.js';
+import { createUrlSchema } from './create-url';
 
 describe('createUrlSchema (frontend mirror — must never be looser than backend)', () => {
   it('accepts http(s) URLs with optional alias and future expiry', () => {

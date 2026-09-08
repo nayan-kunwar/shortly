@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from './env.js';
+import { getApiBaseUrl } from './env';
 
 /**
  * Typed error mirroring the backend contract (§15, §30 of the frontend spec).
