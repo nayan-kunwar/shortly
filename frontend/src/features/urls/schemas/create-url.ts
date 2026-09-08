@@ -3,7 +3,17 @@ import { z } from 'zod';
 /**
  * Mirrors the backend M2 validation (never looser — §7 of the frontend spec).
  * Backend remains the truth; this schema exists for instant UX feedback.
+ *
+ * NOTE on empty strings: text inputs yield '' when untouched, but the wire
+ * shape uses null for "absent". The form layer preprocesses '' → null so
+ * this schema keeps backend parity ('' is invalid on the wire, too).
  */
+export const customAliasRule = z
+  .string()
+  .min(1)
+  .max(30)
+  .regex(/^[A-Za-z0-9_-]+$/, 'Letters, numbers, "-" and "_" only.');
+
 export const createUrlSchema = z.object({
   url: z
     .string({ required_error: 'Please enter a URL.' })
@@ -17,12 +27,7 @@ export const createUrlSchema = z.object({
         return false;
       }
     }, 'Please enter a valid http(s) URL.'),
-  customAlias: z
-    .string()
-    .min(1)
-    .max(30)
-    .regex(/^[A-Za-z0-9_-]+$/, 'Letters, numbers, "-" and "_" only.')
-    .nullish(),
+  customAlias: customAliasRule.nullish(),
   expiresAt: z
     .string()
     .refine((v) => {
