@@ -1,0 +1,13 @@
+# Next.js build output
+.next/
+out/
+# Dependencies
+node_modules/
+# Local env (all variants hold secrets)
+.env*.local
+# TypeScript / test artifacts
+*.tsbuildinfo
+coverage/
+# Misc
+*.log
+.DS_Store
