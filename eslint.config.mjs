@@ -4,7 +4,8 @@ import prettierConfig from 'eslint-config-prettier';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'coverage/**', 'node_modules/**'],
+    // Backend-only config. frontend/ brings its own ESLint in F0.
+    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'frontend/**'],
   },
   js.configs.recommended,
   ...tseslint.configs.strict,

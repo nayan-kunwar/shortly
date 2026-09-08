@@ -6,3 +6,5 @@ package-lock.json
 *.log
 .DS_Store
 AGENTS.md
+# Frontend brings its own formatting config in F0.
+frontend
