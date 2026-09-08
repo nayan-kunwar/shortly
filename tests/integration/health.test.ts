@@ -1,6 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
+import { closeRedis } from '../../src/redis/client.js';
+
+afterAll(async () => {
+  // createApp wires the Redis singleton even for non-DB routes.
+  await closeRedis();
+});
 
 describe('GET /health', () => {
   it('returns 200 with status ok', async () => {
@@ -17,5 +23,14 @@ describe('GET /health', () => {
     const res = await request(app).get('/definitely-not-here');
     expect(res.status).toBe(404);
     expect(res.body).toMatchObject({ error: 'NotFound' });
+  });
+
+  it('echoes ACAO for the configured dev origin only', async () => {
+    const app = createApp();
+    const allowed = await request(app).get('/health').set('Origin', 'http://localhost:3001');
+    expect(allowed.headers['access-control-allow-origin']).toBe('http://localhost:3001');
+
+    const denied = await request(app).get('/health').set('Origin', 'http://evil.example');
+    expect(denied.headers['access-control-allow-origin']).toBeUndefined();
   });
 });

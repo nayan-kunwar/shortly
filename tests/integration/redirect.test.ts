@@ -1,24 +1,33 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
+import { UrlCache } from '../../src/cache/url-cache.js';
 import { closeDb, db, pool } from '../../src/db/db.js';
 import { runMigrations } from '../../src/db/migrate.js';
+import { closeRedis, getRedis } from '../../src/redis/client.js';
+import { waitForRedis } from '../redis-ready.js';
 import { UrlRepository } from '../../src/repositories/url.repository.js';
+import { UrlService } from '../../src/services/url.service.js';
 
-// Needs a real PostgreSQL: npm run db:up && npm run db:migrate
+// Needs real PostgreSQL + Redis: docker compose up -d postgres redis && npm run db:migrate
 
-const repo = new UrlRepository(db);
+// Mutations go through the service (like future M7 routes will) so cache
+// invalidation is exercised, not bypassed.
+const service = new UrlService(new UrlRepository(db), new UrlCache(getRedis()));
 
 beforeAll(async () => {
   await runMigrations(pool);
+  await waitForRedis();
 }, 30_000);
 
 beforeEach(async () => {
   await pool.query('TRUNCATE urls RESTART IDENTITY');
+  await getRedis().flushdb();
 });
 
 afterAll(async () => {
   await closeDb();
+  await closeRedis();
 });
 
 async function createCode(app: ReturnType<typeof createApp>, url: string): Promise<string> {
@@ -59,7 +68,7 @@ describe('GET /:shortCode', () => {
   it('answers 410 for deactivated URLs', async () => {
     const app = createApp();
     const code = await createCode(app, 'https://example.com/bye');
-    await repo.deactivate(code);
+    await service.deactivateUrl(code);
 
     const res = await request(app).get(`/${code}`).redirects(0);
     expect(res.status).toBe(410);
@@ -70,7 +79,7 @@ describe('GET /:shortCode', () => {
   it('answers 410 for expired URLs', async () => {
     const app = createApp();
     const code = await createCode(app, 'https://example.com/old');
-    await repo.update(code, { expiresAt: new Date(Date.now() - 1_000) });
+    await service.updateUrl(code, { expiresAt: new Date(Date.now() - 1_000) });
 
     const res = await request(app).get(`/${code}`).redirects(0);
     expect(res.status).toBe(410);

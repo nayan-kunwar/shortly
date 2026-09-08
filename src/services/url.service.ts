@@ -1,8 +1,11 @@
+import { recordCacheHit, recordCacheMiss } from '../cache/cache-metrics.js';
+import type { CachedEntry, UrlCache } from '../cache/url-cache.js';
 import { env } from '../config/env.js';
 import { ConflictError } from '../errors/conflict-error.js';
 import { GoneError } from '../errors/gone-error.js';
 import { NotFoundError } from '../errors/not-found-error.js';
 import type { UrlRepository } from '../repositories/url.repository.js';
+import type { UpdateUrlPatch, UrlRecord } from '../types/url.js';
 import { encodeBase62 } from '../utils/base62.js';
 import type { CreateUrlRequest } from '../validators/url.validator.js';
 
@@ -13,7 +16,10 @@ export interface CreatedUrl {
 }
 
 export class UrlService {
-  constructor(private readonly repo: UrlRepository) {}
+  constructor(
+    private readonly repo: UrlRepository,
+    private readonly cache: UrlCache,
+  ) {}
 
   /**
    * Create a shortened URL.
@@ -33,6 +39,8 @@ export class UrlService {
           customAlias,
           expiresAt,
         });
+        // A negative entry for this alias may exist from an earlier miss.
+        await this.cache.invalidate(customAlias);
         return this.toResponse(created.shortCode, created.originalUrl);
       } catch (err) {
         // The alias is stored as the row's short_code too, so a duplicate
@@ -47,27 +55,74 @@ export class UrlService {
       { originalUrl: input.url, customAlias: null, expiresAt },
       encodeBase62,
     );
+    await this.cache.invalidate(created.shortCode);
     return this.toResponse(created.shortCode, created.originalUrl);
   }
 
+  /** Service owns every mutation so invalidation cannot be forgotten by callers. */
+  async deactivateUrl(shortCode: string): Promise<UrlRecord | null> {
+    const row = await this.repo.deactivate(shortCode);
+    await this.cache.invalidate(shortCode);
+    return row;
+  }
+
+  async updateUrl(shortCode: string, patch: UpdateUrlPatch): Promise<UrlRecord | null> {
+    const row = await this.repo.update(shortCode, patch);
+    await this.cache.invalidate(shortCode);
+    return row;
+  }
+
   /**
-   * Resolve a short code to its destination for the redirect path.
-   * Expiry is lazy: checked here on every hit (no cron, no TTL sweeper yet).
-   * Throws NotFoundError (unknown) or GoneError (deactivated/expired) —
-   * the controller maps them to 404/410.
+   * Resolve a short code for the redirect path. Cache-aside:
+   * HIT → answer from Redis (re-checking lazy expiry on cached rows);
+   * MISS or Redis error → PostgreSQL, then populate (negatives briefly).
+   * Redis is never required: every failure path ends at the source of truth.
    */
   async resolveUrl(shortCode: string): Promise<{ originalUrl: string }> {
+    const cached = await this.cache.lookup(shortCode);
+    if (cached.hit) {
+      recordCacheHit();
+      return this.fromCache(shortCode, cached.value);
+    }
+    recordCacheMiss();
+
     const record = await this.repo.findByShortCode(shortCode);
     if (record === null) {
+      await this.cache.store(shortCode, { kind: 'missing' });
       throw new NotFoundError(`Unknown short code: ${shortCode}`);
     }
     if (!record.isActive) {
+      await this.cache.store(shortCode, { kind: 'gone', reason: 'deactivated' });
       throw new GoneError('deactivated');
     }
     if (record.expiresAt !== null && record.expiresAt.getTime() <= Date.now()) {
+      await this.cache.store(shortCode, { kind: 'gone', reason: 'expired' });
       throw new GoneError('expired');
     }
+    await this.cache.store(shortCode, {
+      kind: 'url',
+      originalUrl: record.originalUrl,
+      expiresAt: record.expiresAt?.toISOString() ?? null,
+      isActive: record.isActive,
+    });
     return { originalUrl: record.originalUrl };
+  }
+
+  /** Interpret a cache hit with the same rules as a DB row. Throws 404/410. */
+  private fromCache(shortCode: string, entry: CachedEntry | null): { originalUrl: string } {
+    if (entry === null || entry.kind === 'missing') {
+      throw new NotFoundError(`Unknown short code: ${shortCode}`);
+    }
+    if (entry.kind === 'gone') {
+      throw new GoneError(entry.reason);
+    }
+    if (!entry.isActive) {
+      throw new GoneError('deactivated');
+    }
+    if (entry.expiresAt !== null && Date.parse(entry.expiresAt) <= Date.now()) {
+      throw new GoneError('expired');
+    }
+    return { originalUrl: entry.originalUrl };
   }
 
   private toResponse(shortCode: string, originalUrl: string): CreatedUrl {

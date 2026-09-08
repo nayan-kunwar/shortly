@@ -1,27 +1,55 @@
+import cors from 'cors';
 import express, { type Application, type NextFunction, type Request, type Response } from 'express';
 import { ZodError } from 'zod';
 import { createUrlsController } from './controllers/urls.controller.js';
+import { UrlCache } from './cache/url-cache.js';
 import { db } from './db/db.js';
+import { env } from './config/env.js';
 import { ConflictError } from './errors/conflict-error.js';
 import { GoneError } from './errors/gone-error.js';
 import { NotFoundError } from './errors/not-found-error.js';
 import { UrlRepository } from './repositories/url.repository.js';
+import { getRedis } from './redis/client.js';
 import { healthRouter } from './routes/health.js';
 import { createRedirectRouter } from './routes/redirect.js';
 import { createUrlsRouter } from './routes/urls.js';
 import { UrlService } from './services/url.service.js';
 
-export function createApp(): Application {
+export interface AppDeps {
+  /** Override the redirect cache (tests inject broken/observed instances). */
+  cache?: UrlCache;
+}
+
+export function createApp(deps: AppDeps = {}): Application {
   const app = express();
 
   app.disable('x-powered-by');
   app.use(express.json({ limit: '100kb' }));
 
+  // CORS for local frontend development only. Disabled in production, where
+  // the frontend is same-origin (or the gateway owns CORS policy).
+  // Function form: matching origins get an ACAO echo, everyone else gets
+  // no CORS headers at all (a fixed string would echo on every response).
+  if (env.NODE_ENV !== 'production') {
+    app.use(
+      cors({
+        origin: (origin, callback) => {
+          // Same-origin / non-browser requests carry no Origin — allow through.
+          if (origin === undefined || origin === env.CORS_ORIGIN) {
+            callback(null, true);
+          } else {
+            callback(null, false);
+          }
+        },
+      }),
+    );
+  }
+
   app.use('/health', healthRouter);
 
   // Route → Controller → Service → Repository → PostgreSQL.
   // Wired here (composition root) so handlers stay constructible in tests.
-  const urlService = new UrlService(new UrlRepository(db));
+  const urlService = new UrlService(new UrlRepository(db), deps.cache ?? new UrlCache(getRedis()));
   const urlsController = createUrlsController(urlService);
   app.use('/api/v1/urls', createUrlsRouter(urlsController));
 
