@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import type { Db } from '../db/db.js';
 import { urls } from '../db/schema.js';
@@ -66,6 +67,43 @@ export class UrlRepository {
       const row = rows[0];
       if (row === undefined) throw new Error('INSERT did not return a row');
       return row;
+    } catch (err) {
+      throw mapConstraintError(err);
+    }
+  }
+
+  /**
+   * Insert a row and derive its short code from the generated id, in one
+   * transaction. The placeholder satisfies NOT NULL and is invisible outside
+   * the transaction (uncommitted rows are never readable), so there is no
+   * window where a half-made row exists. Deterministic: no retry loop.
+   */
+  async createWithGeneratedCode(
+    input: Omit<CreateUrlInput, 'shortCode'>,
+    encode: (id: number) => string,
+  ): Promise<UrlRecord> {
+    try {
+      return await this.db.transaction(async (tx) => {
+        const inserted = await tx
+          .insert(urls)
+          .values({
+            shortCode: `tmp-${randomUUID()}`,
+            originalUrl: input.originalUrl,
+            customAlias: input.customAlias,
+            expiresAt: input.expiresAt,
+          })
+          .returning();
+        const pending = inserted[0];
+        if (pending === undefined) throw new Error('INSERT did not return a row');
+        const updated = await tx
+          .update(urls)
+          .set({ shortCode: encode(pending.id) })
+          .where(eq(urls.id, pending.id))
+          .returning();
+        const row = updated[0];
+        if (row === undefined) throw new Error('UPDATE did not return a row');
+        return row;
+      });
     } catch (err) {
       throw mapConstraintError(err);
     }

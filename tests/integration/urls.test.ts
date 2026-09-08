@@ -27,9 +27,19 @@ describe('POST /api/v1/urls', () => {
 
     expect(res.status).toBe(201);
     expect(typeof res.body.shortCode).toBe('string');
-    expect(res.body.shortCode).toHaveLength(7);
+    // Sequence-id → Base62: short, alphanumeric, deterministic per id.
+    expect(String(res.body.shortCode)).toMatch(/^[0-9A-Za-z]{1,11}$/);
     expect(res.body.shortUrl).toBe(`http://localhost:3000/${String(res.body.shortCode)}`);
     expect(res.body.originalUrl).toBe('https://example.com/very/long/url');
+  });
+
+  it('issues a distinct code per URL (deterministic, no collisions possible)', async () => {
+    const app = createApp();
+    const first = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/1' });
+    const second = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/2' });
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    expect(second.body.shortCode).not.toBe(first.body.shortCode);
   });
 
   it('accepts a custom alias and future expiry', async () => {

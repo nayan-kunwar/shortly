@@ -67,7 +67,12 @@ Before merging a milestone branch:
 5. Live verification done (documented in `docs/milestone-NN-*.md`)
 6. `git status` clean, no secrets (`.env` never committed)
 
-Merge only when all six pass. The agent will never merge without being told to.
+Merge only when all six pass.
+
+Standing rule: when a milestone finishes, the agent runs the whole
+close-out unprompted — commit on the milestone branch, push it, merge to
+`main`, tag `m<N>-done`, verify `main`, push `main` + tag, and open the next
+`milestone/<N+1>-<name>` branch.
 
 ## Rule 5: tag every merge, keep branches
 
