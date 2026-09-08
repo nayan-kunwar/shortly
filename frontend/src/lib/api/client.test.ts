@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ShortlyApiError, apiRequest } from './client.js';
+import { ShortlyApiError, apiRequest } from './client';
 
 const BASE = 'http://localhost:3000';
 process.env['NEXT_PUBLIC_API_URL'] = BASE;

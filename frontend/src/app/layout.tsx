@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import type { Metadata } from 'next';
 import './globals.css';
+import { Navbar, Sidebar } from '../components/layout/navbar';
+import { ThemeProvider } from '../components/layout/theme-provider';
 
 export const metadata: Metadata = {
   title: 'Shortly — URL Shortener',
@@ -9,8 +11,17 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    // suppressHydrationWarning: next-themes sets the class post-hydration.
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <ThemeProvider>
+          <Navbar />
+          <div className="mx-auto flex max-w-6xl">
+            <Sidebar />
+            <main className="min-w-0 flex-1 px-4 py-8">{children}</main>
+          </div>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

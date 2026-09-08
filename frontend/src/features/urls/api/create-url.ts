@@ -1,5 +1,5 @@
-import { apiRequest } from '../../../lib/api/client.js';
-import type { CreatedUrl, CreateUrlInput } from '../types.js';
+import { apiRequest } from '../../../lib/api/client';
+import type { CreatedUrl, CreateUrlInput } from '../types';
 
 /** POST /api/v1/urls — the only call F0 needs to prove the client works. */
 export function createUrl(input: CreateUrlInput, signal?: AbortSignal): Promise<CreatedUrl> {
