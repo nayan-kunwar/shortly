@@ -3,8 +3,11 @@ import { ZodError } from 'zod';
 import { createUrlsController } from './controllers/urls.controller.js';
 import { db } from './db/db.js';
 import { ConflictError } from './errors/conflict-error.js';
+import { GoneError } from './errors/gone-error.js';
+import { NotFoundError } from './errors/not-found-error.js';
 import { UrlRepository } from './repositories/url.repository.js';
 import { healthRouter } from './routes/health.js';
+import { createRedirectRouter } from './routes/redirect.js';
 import { createUrlsRouter } from './routes/urls.js';
 import { UrlService } from './services/url.service.js';
 
@@ -19,7 +22,13 @@ export function createApp(): Application {
   // Route → Controller → Service → Repository → PostgreSQL.
   // Wired here (composition root) so handlers stay constructible in tests.
   const urlService = new UrlService(new UrlRepository(db));
-  app.use('/api/v1/urls', createUrlsRouter(createUrlsController(urlService)));
+  const urlsController = createUrlsController(urlService);
+  app.use('/api/v1/urls', createUrlsRouter(urlsController));
+
+  // ORDERING INVARIANT: the redirect router matches any single-segment GET
+  // path, so it must be registered AFTER /health, /api/* (and later
+  // /ready, /metrics in M14) — Express matches in registration order.
+  app.use('/', createRedirectRouter(urlsController));
 
   // Express 5: bare fallback middleware (no '*' path — v5 uses a new path syntax).
   app.use((req: Request, res: Response) => {
@@ -48,6 +57,18 @@ export function createApp(): Application {
         error: 'Conflict',
         message: err.message,
         field: err.field,
+      });
+      return;
+    }
+    if (err instanceof NotFoundError) {
+      res.status(err.status).json({ error: 'NotFound', message: err.message });
+      return;
+    }
+    if (err instanceof GoneError) {
+      res.status(err.status).json({
+        error: 'Gone',
+        message: err.message,
+        reason: err.reason,
       });
       return;
     }
