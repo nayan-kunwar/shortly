@@ -1,6 +1,12 @@
+import { z } from 'zod';
 import type { NextFunction, Request, Response } from 'express';
+import { NotFoundError } from '../errors/not-found-error.js';
 import type { UrlService } from '../services/url.service.js';
 import { createUrlSchema } from '../validators/url.validator.js';
+
+const shortCodeParams = z.object({
+  shortCode: z.string().min(1).max(64),
+});
 
 /**
  * Controller: HTTP in/out only. Parses with Zod (throws ZodError → 400 via
@@ -34,6 +40,26 @@ export function createUrlsController(service: UrlService) {
         }
         const { originalUrl } = await service.resolveUrl(shortCode);
         res.redirect(302, originalUrl);
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    /**
+     * DELETE /api/v1/urls/:shortCode. Soft delete via the service (which
+     * also invalidates the cache). 200 + state (not 204: this API answers
+     * JSON everywhere, and the body confirms the resulting state).
+     * Idempotent: deleting an already-inactive code still answers 200 —
+     * the end state is identical. Unknown codes answer 404.
+     */
+    async deleteUrl(req: Request, res: Response, next: NextFunction): Promise<void> {
+      try {
+        const { shortCode } = shortCodeParams.parse(req.params);
+        const row = await service.deactivateUrl(shortCode);
+        if (row === null) {
+          throw new NotFoundError(`Unknown short code: ${shortCode}`);
+        }
+        res.status(200).json({ shortCode: row.shortCode, isActive: row.isActive });
       } catch (err) {
         next(err);
       }

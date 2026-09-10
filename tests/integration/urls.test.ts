@@ -135,3 +135,49 @@ describe('POST /api/v1/urls', () => {
     expect(results.filter((r) => r.status === 409)).toHaveLength(9);
   });
 });
+
+describe('DELETE /api/v1/urls/:shortCode', () => {
+  it('deactivates and the redirect becomes 410 (cache invalidated)', async () => {
+    const app = createApp();
+    const created = await request(app)
+      .post('/api/v1/urls')
+      .send({ url: 'https://example.com/doomed' });
+    expect(created.status).toBe(201);
+    const code = String(created.body.shortCode);
+
+    // Populate the cache first: without invalidation this GET would stay 302.
+    const before = await request(app).get(`/${code}`).redirects(0);
+    expect(before.status).toBe(302);
+
+    const deleted = await request(app).delete(`/api/v1/urls/${code}`);
+    expect(deleted.status).toBe(200);
+    expect(deleted.body).toMatchObject({ shortCode: code, isActive: false });
+
+    const after = await request(app).get(`/${code}`).redirects(0);
+    expect(after.status).toBe(410);
+    expect(after.body.reason).toBe('deactivated');
+  });
+
+  it('answers 404 for unknown codes', async () => {
+    const app = createApp();
+    const res = await request(app).delete('/api/v1/urls/never-existed');
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('NotFound');
+  });
+
+  it('is idempotent: deleting twice still answers 200 and stays 410', async () => {
+    const app = createApp();
+    const created = await request(app)
+      .post('/api/v1/urls')
+      .send({ url: 'https://example.com/twice' });
+    const code = String(created.body.shortCode);
+
+    const first = await request(app).delete(`/api/v1/urls/${code}`);
+    const second = await request(app).delete(`/api/v1/urls/${code}`);
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+
+    const redirect = await request(app).get(`/${code}`).redirects(0);
+    expect(redirect.status).toBe(410);
+  });
+});
