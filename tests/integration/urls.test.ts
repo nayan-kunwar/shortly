@@ -107,4 +107,31 @@ describe('POST /api/v1/urls', () => {
     expect(second.body.error).toBe('Conflict');
     expect(second.body.field).toBe('customAlias');
   });
+
+  it('rejects reserved and too-short aliases with 400', async () => {
+    const app = createApp();
+    for (const customAlias of ['health', 'HEALTH', 'metrics', 'ab']) {
+      const res = await request(app)
+        .post('/api/v1/urls')
+        .send({ url: 'https://example.com/x', customAlias });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('ValidationError');
+    }
+  });
+
+  it('lets exactly one concurrent request win a contested alias', async () => {
+    // Ten requests race the same alias. There is no check-then-insert
+    // anywhere in the path — the unique constraint arbitrates, losers get
+    // 23505 → 409. If application-level checking existed, two could win.
+    const app = createApp();
+    const results = await Promise.all(
+      Array.from({ length: 10 }, (_, i) =>
+        request(app)
+          .post('/api/v1/urls')
+          .send({ url: `https://example.com/race/${String(i)}`, customAlias: 'race-alias' }),
+      ),
+    );
+    expect(results.filter((r) => r.status === 201)).toHaveLength(1);
+    expect(results.filter((r) => r.status === 409)).toHaveLength(9);
+  });
 });

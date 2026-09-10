@@ -1,18 +1,47 @@
 import { z } from 'zod';
 
 /**
- * Mirrors the backend M2 validation (never looser — §7 of the frontend spec).
+ * Mirrors the backend M2/M6 validation (never looser — §7 of the frontend spec).
  * Backend remains the truth; this schema exists for instant UX feedback.
  *
  * NOTE on empty strings: text inputs yield '' when untouched, but the wire
  * shape uses null for "absent". The form layer preprocesses '' → null so
  * this schema keeps backend parity ('' is invalid on the wire, too).
  */
+const RESERVED_ALIASES: ReadonlySet<string> = new Set([
+  'health',
+  'ready',
+  'metrics',
+  'api',
+  'admin',
+  'www',
+  'app',
+  'static',
+  'assets',
+  'login',
+  'logout',
+  'settings',
+  'create',
+  'urls',
+  'analytics',
+  'dashboard',
+  'help',
+  'support',
+  'status',
+  'shortly',
+]);
+
 export const customAliasRule = z
   .string()
-  .min(1)
+  .min(3, 'At least 3 characters.')
   .max(30)
-  .regex(/^[A-Za-z0-9_-]+$/, 'Letters, numbers, "-" and "_" only.');
+  .regex(/^[A-Za-z0-9_-]+$/, 'Letters, numbers, "-" and "_" only.')
+  .refine(
+    (v) => !RESERVED_ALIASES.has(v.toLowerCase()),
+    (v) => ({
+      message: `"${v}" is reserved.`,
+    }),
+  );
 
 export const createUrlSchema = z.object({
   url: z

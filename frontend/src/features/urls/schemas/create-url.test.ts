@@ -18,6 +18,12 @@ describe('createUrlSchema (frontend mirror — must never be looser than backend
       createUrlSchema.parse({ url: 'https://example.com', customAlias: 'has space' }),
     ).toThrow();
     expect(() =>
+      createUrlSchema.parse({ url: 'https://example.com', customAlias: 'ab' }),
+    ).toThrow();
+    expect(() =>
+      createUrlSchema.parse({ url: 'https://example.com', customAlias: 'health' }),
+    ).toThrow();
+    expect(() =>
       createUrlSchema.parse({
         url: 'https://example.com',
         expiresAt: new Date(Date.now() - 1_000).toISOString(),
