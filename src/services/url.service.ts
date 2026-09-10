@@ -1,5 +1,7 @@
 import { recordCacheHit, recordCacheMiss } from '../cache/cache-metrics.js';
 import type { CachedEntry, UrlCache } from '../cache/url-cache.js';
+import { buildClickEvent, type ClickContext, type ClickEmitter } from '../analytics/click-event.js';
+import { recordAnalyticsEventCreated } from '../analytics/analytics-metrics.js';
 import { env } from '../config/env.js';
 import { ConflictError } from '../errors/conflict-error.js';
 import { GoneError } from '../errors/gone-error.js';
@@ -19,6 +21,7 @@ export class UrlService {
   constructor(
     private readonly repo: UrlRepository,
     private readonly cache: UrlCache,
+    private readonly emitter: ClickEmitter,
   ) {}
 
   /**
@@ -77,8 +80,27 @@ export class UrlService {
    * HIT → answer from Redis (re-checking lazy expiry on cached rows);
    * MISS or Redis error → PostgreSQL, then populate (negatives briefly).
    * Redis is never required: every failure path ends at the source of truth.
+   *
+   * Emits one `url.clicked` event on success only — fire-and-forget through
+   * the injected emitter (sync contract: never awaited). 404/410 answers
+   * emit nothing; they are HTTP errors for M14 metrics, not counted clicks.
    */
-  async resolveUrl(shortCode: string): Promise<{ originalUrl: string }> {
+  async resolveUrl(
+    shortCode: string,
+    ctx: Omit<ClickContext, 'shortCode'> = { ip: null, userAgent: null, referer: null },
+  ): Promise<{ originalUrl: string }> {
+    const resolved = await this.doResolve(shortCode);
+    try {
+      this.emitter.emit(buildClickEvent({ ...ctx, shortCode }));
+      recordAnalyticsEventCreated();
+    } catch (err) {
+      // Analytics must never break redirects — not even a buggy emitter.
+      console.error(`Click emission failed (redirect unaffected): ${(err as Error).message}`);
+    }
+    return resolved;
+  }
+
+  private async doResolve(shortCode: string): Promise<{ originalUrl: string }> {
     const cached = await this.cache.lookup(shortCode);
     if (cached.hit) {
       recordCacheHit();
