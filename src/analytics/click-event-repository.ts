@@ -125,4 +125,13 @@ export class ClickEventRepository {
       .returning({ id: clickEvents.id });
     return rows.length;
   }
+
+  /** Lifetime click total for one link (detail pages). */
+  async countByShortCode(shortCode: string): Promise<number> {
+    const rows = await this.db
+      .select({ count: count() })
+      .from(clickEvents)
+      .where(eq(clickEvents.shortCode, shortCode));
+    return rows[0]?.count ?? 0;
+  }
 }

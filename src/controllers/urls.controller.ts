@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { NextFunction, Request, Response } from 'express';
 import { NotFoundError } from '../errors/not-found-error.js';
 import type { UrlService } from '../services/url.service.js';
-import { createUrlSchema } from '../validators/url.validator.js';
+import { createUrlSchema, listUrlsQuerySchema } from '../validators/url.validator.js';
 
 const shortCodeParams = z.object({
   shortCode: z.string().min(1).max(64),
@@ -76,6 +76,26 @@ export function createUrlsController(service: UrlService) {
       try {
         const { shortCode } = shortCodeParams.parse(req.params);
         res.status(200).json(await service.getUrlAnalytics(shortCode));
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    /** GET /api/v1/urls (keyset page). Query validated, 400 on garbage. */
+    async listUrls(req: Request, res: Response, next: NextFunction): Promise<void> {
+      try {
+        const query = listUrlsQuerySchema.parse(req.query);
+        res.status(200).json(await service.listUrls(query));
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    /** GET /api/v1/urls/:shortCode. 200 details, 404 unknown. */
+    async getUrlDetails(req: Request, res: Response, next: NextFunction): Promise<void> {
+      try {
+        const { shortCode } = shortCodeParams.parse(req.params);
+        res.status(200).json(await service.getUrlDetails(shortCode));
       } catch (err) {
         next(err);
       }

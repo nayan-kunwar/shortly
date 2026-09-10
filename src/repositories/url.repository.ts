@@ -1,9 +1,47 @@
 import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, count, desc, eq, ilike, lt, or } from 'drizzle-orm';
 import type { Db } from '../db/db.js';
-import { urls } from '../db/schema.js';
+import { clickEvents, urls } from '../db/schema.js';
 import { ConflictError } from '../errors/conflict-error.js';
 import type { CreateUrlInput, UpdateUrlPatch, UrlRecord } from '../types/url.js';
+import { encodeCursor } from '../validators/url.validator.js';
+
+export interface ListUrlsInput {
+  limit: number;
+  /** Keyset cursor: return rows with id below this (newest-first pages). */
+  cursorId?: number | undefined;
+  search?: string | undefined;
+}
+
+export interface ListedUrl extends UrlRecord {
+  clicks: number;
+}
+
+export interface ListUrlsResult {
+  items: ListedUrl[];
+  /** Opaque cursor for the next page, null when exhausted. */
+  nextCursor: string | null;
+}
+
+/** Escape LIKE wildcards so search terms match literally. */
+function escapeLike(term: string): string {
+  return term.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
+/** Map an explicit column selection (list query) to a UrlRecord. */
+function toRecord(row: UrlRecord): UrlRecord {
+  return {
+    id: row.id,
+    shortCode: row.shortCode,
+    originalUrl: row.originalUrl,
+    customAlias: row.customAlias,
+    userId: row.userId,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    expiresAt: row.expiresAt,
+    isActive: row.isActive,
+  };
+}
 
 /**
  * Walk the error chain looking for a Postgres unique violation (23505).
@@ -118,7 +156,55 @@ export class UrlRepository {
   async findByCustomAlias(alias: string): Promise<UrlRecord | null> {
     const rows = await this.db.select().from(urls).where(eq(urls.customAlias, alias));
     const row = rows[0];
-    return row === undefined ? null : row;
+    return row === undefined ? null : toRecord(row);
+  }
+
+  /**
+   * Keyset page, newest first. No COUNT(*): total counts tax every list call
+   * on a growing table; the client pages until nextCursor is null.
+   * Per-row click counts ride a LEFT JOIN (one query, not N+1); GROUP BY the
+   * primary key covers the other columns via functional dependency.
+   */
+  async listUrls(input: ListUrlsInput): Promise<ListUrlsResult> {
+    const conditions = [];
+    if (input.cursorId !== undefined) conditions.push(lt(urls.id, input.cursorId));
+    if (input.search !== undefined && input.search !== '') {
+      const term = `%${escapeLike(input.search)}%`;
+      conditions.push(
+        or(
+          ilike(urls.shortCode, term),
+          ilike(urls.originalUrl, term),
+          ilike(urls.customAlias, term),
+        ),
+      );
+    }
+    const rows = await this.db
+      .select({
+        id: urls.id,
+        shortCode: urls.shortCode,
+        originalUrl: urls.originalUrl,
+        customAlias: urls.customAlias,
+        userId: urls.userId,
+        createdAt: urls.createdAt,
+        updatedAt: urls.updatedAt,
+        expiresAt: urls.expiresAt,
+        isActive: urls.isActive,
+        clicks: count(clickEvents.id),
+      })
+      .from(urls)
+      .leftJoin(clickEvents, eq(clickEvents.shortCode, urls.shortCode))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .groupBy(urls.id)
+      .orderBy(desc(urls.id))
+      .limit(input.limit + 1);
+
+    const hasMore = rows.length > input.limit;
+    const page = hasMore ? rows.slice(0, input.limit) : rows;
+    const last = page[page.length - 1];
+    return {
+      items: page.map((r) => ({ ...toRecord(r), clicks: r.clicks })),
+      nextCursor: hasMore && last !== undefined ? encodeCursor(last.id) : null,
+    };
   }
 
   /** Soft-delete: flip the flag, keep the row for analytics history. */

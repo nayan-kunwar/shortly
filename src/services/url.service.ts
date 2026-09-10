@@ -10,13 +10,26 @@ import { NotFoundError } from '../errors/not-found-error.js';
 import type { UrlRepository } from '../repositories/url.repository.js';
 import type { UpdateUrlPatch, UrlRecord } from '../types/url.js';
 import { encodeBase62 } from '../utils/base62.js';
-import type { CreateUrlRequest } from '../validators/url.validator.js';
+import type { CreateUrlRequest, ListUrlsQuery } from '../validators/url.validator.js';
 
 export interface CreatedUrl {
   shortCode: string;
   shortUrl: string;
   originalUrl: string;
 }
+
+export interface ListedUrlResponse {
+  shortCode: string;
+  shortUrl: string;
+  originalUrl: string;
+  customAlias: string | null;
+  createdAt: Date;
+  expiresAt: Date | null;
+  isActive: boolean;
+  clicks: number;
+}
+
+export type UrlDetails = ListedUrlResponse;
 
 export interface UrlAnalytics extends ClickStats {
   shortCode: string;
@@ -93,6 +106,46 @@ export class UrlService {
     }
     const stats = await this.analytics.getStats(shortCode);
     return { shortCode, ...stats };
+  }
+
+  /**
+   * Keyset list page (newest first). No total count by design (M-reads doc).
+   */
+  async listUrls(
+    query: ListUrlsQuery,
+  ): Promise<{ items: ListedUrlResponse[]; nextCursor: string | null }> {
+    const result = await this.repo.listUrls({
+      limit: query.limit,
+      cursorId: query.cursor,
+      search: query.search,
+    });
+    return {
+      items: result.items.map((item) => this.toListed(item)),
+      nextCursor: result.nextCursor,
+    };
+  }
+
+  /** Single-URL details with lifetime clicks. 404 when unknown. */
+  async getUrlDetails(shortCode: string): Promise<UrlDetails> {
+    const record = await this.repo.findByShortCode(shortCode);
+    if (record === null) {
+      throw new NotFoundError(`Unknown short code: ${shortCode}`);
+    }
+    const clicks = await this.analytics.countByShortCode(shortCode);
+    return { ...this.toListed(record), clicks };
+  }
+
+  private toListed(record: UrlRecord & { clicks?: number | undefined }): ListedUrlResponse {
+    return {
+      shortCode: record.shortCode,
+      shortUrl: `${env.BASE_URL}/${record.shortCode}`,
+      originalUrl: record.originalUrl,
+      customAlias: record.customAlias,
+      createdAt: record.createdAt,
+      expiresAt: record.expiresAt,
+      isActive: record.isActive,
+      clicks: record.clicks ?? 0,
+    };
   }
 
   /**
