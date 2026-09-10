@@ -9,6 +9,7 @@ import { ConflictError } from './errors/conflict-error.js';
 import { GoneError } from './errors/gone-error.js';
 import { NotFoundError } from './errors/not-found-error.js';
 import { UrlRepository } from './repositories/url.repository.js';
+import { createRateLimiter } from './ratelimit/rate-limiter.js';
 import { getRedis } from './redis/client.js';
 import { healthRouter } from './routes/health.js';
 import { createRedirectRouter } from './routes/redirect.js';
@@ -18,6 +19,11 @@ import { UrlService } from './services/url.service.js';
 export interface AppDeps {
   /** Override the redirect cache (tests inject broken/observed instances). */
   cache?: UrlCache;
+  /**
+   * Override the creation rate limiter. Tests inject tight limits or broken
+   * Redis; pass `null` to disable limiting entirely for a test app.
+   */
+  rateLimiter?: ReturnType<typeof createRateLimiter> | null;
 }
 
 export function createApp(deps: AppDeps = {}): Application {
@@ -51,7 +57,25 @@ export function createApp(deps: AppDeps = {}): Application {
   // Wired here (composition root) so handlers stay constructible in tests.
   const urlService = new UrlService(new UrlRepository(db), deps.cache ?? new UrlCache(getRedis()));
   const urlsController = createUrlsController(urlService);
-  app.use('/api/v1/urls', createUrlsRouter(urlsController));
+
+  // Write-path protection. /health and redirects stay unlimited (liveness
+  // and the counting path must never 429); POST and DELETE share one write
+  // budget (both are abuse-relevant). Analytics routes get their own
+  // namespace when they arrive (M13).
+  const createLimiter =
+    deps.rateLimiter !== undefined
+      ? deps.rateLimiter
+      : createRateLimiter({
+          windowSeconds: env.RATE_LIMIT_WINDOW,
+          maxRequests: env.RATE_LIMIT_MAX_REQUESTS,
+          keyPrefix: 'urls:write',
+        });
+  const urlsRouter = createUrlsRouter(urlsController);
+  if (createLimiter !== null) {
+    app.use('/api/v1/urls', createLimiter, urlsRouter);
+  } else {
+    app.use('/api/v1/urls', urlsRouter);
+  }
 
   // ORDERING INVARIANT: the redirect router matches any single-segment GET
   // path, so it must be registered AFTER /health, /api/* (and later
