@@ -14,6 +14,7 @@ const envSchema = z.object({
   REDIS_TTL: z.coerce.number().int().min(60).max(86400).default(3600),
   RATE_LIMIT_WINDOW: z.coerce.number().int().min(1).max(3600).default(60),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().min(1).max(100000).default(100),
+  RABBITMQ_URL: z.string().min(1).default('amqp://guest:guest@localhost:5672'),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

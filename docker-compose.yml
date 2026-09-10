@@ -1,6 +1,7 @@
 # Milestone 1: PostgreSQL only. M16 expands this file with
 # redis, rabbitmq, api and nginx services.
 # Milestone 5: redis added (cache-aside for redirects).
+# Milestone 10: rabbitmq added (analytics event transport).
 services:
   postgres:
     image: postgres:16-alpine
@@ -34,6 +35,25 @@ services:
       timeout: 3s
       retries: 10
 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: shortly-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - '${RABBITMQ_PORT:-5672}:5672'
+      - '${RABBITMQ_MANAGEMENT_PORT:-15672}:15672'
+    volumes:
+      - rabbitdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   pgdata:
   redisdata:
+  rabbitdata:
