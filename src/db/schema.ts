@@ -68,4 +68,27 @@ export const outboxEvents = pgTable(
   ],
 );
 
-export const schema = { urls, outboxEvents };
+/**
+ * Click event storage (M11). TypeScript mirror of
+ * `migrations/003_create_click_events.sql`. Enrichment columns stay NULL
+ * until parsing lands; aggregation readers arrive in M12.
+ */
+export const clickEvents = pgTable(
+  'click_events',
+  {
+    id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
+    eventId: uuid('event_id').notNull().unique('click_events_event_id_unique'),
+    shortCode: text('short_code').notNull(),
+    clickedAt: timestamp('clicked_at', { withTimezone: true, mode: 'date' }).notNull(),
+    ip: text('ip'),
+    userAgent: text('user_agent'),
+    referrer: text('referrer'),
+    country: text('country'),
+    deviceType: text('device_type'),
+    browser: text('browser'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [index('idx_click_events_link_time').on(t.shortCode, t.clickedAt)],
+);
+
+export const schema = { urls, outboxEvents, clickEvents };

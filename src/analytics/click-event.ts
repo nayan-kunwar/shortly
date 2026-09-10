@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 /**
  * `url.clicked` — the only analytics event (M9). Emitted fire-and-forget on
  * successful redirects; persistence/transport arrive with the outbox (M10).
@@ -83,6 +85,19 @@ export function buildClickEvent(ctx: ClickContext): ClickEvent {
 export interface ClickEmitter {
   emit(event: ClickEvent): void;
 }
+
+/**
+ * Broker-input validation (M11). The builder guarantees shape at creation;
+ * this schema distrusts the wire instead — any producer, any age, any bug.
+ */
+export const clickEventSchema = z.object({
+  eventType: z.literal('url.clicked'),
+  shortCode: z.string().min(1),
+  clickedAt: z.string().datetime({ offset: true }),
+  ip: z.string().nullish(),
+  userAgent: z.string().nullish(),
+  referer: z.string().nullish(),
+});
 
 /** M9 default: structured log line. M10 swaps in the outbox writer. */
 export class LogClickEmitter implements ClickEmitter {
