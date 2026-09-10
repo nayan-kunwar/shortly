@@ -3,6 +3,7 @@ import express, { type Application, type NextFunction, type Request, type Respon
 import { ZodError } from 'zod';
 import { createUrlsController } from './controllers/urls.controller.js';
 import { UrlCache } from './cache/url-cache.js';
+import { LogClickEmitter, type ClickEmitter } from './analytics/click-event.js';
 import { db } from './db/db.js';
 import { env } from './config/env.js';
 import { ConflictError } from './errors/conflict-error.js';
@@ -24,6 +25,8 @@ export interface AppDeps {
    * Redis; pass `null` to disable limiting entirely for a test app.
    */
   rateLimiter?: ReturnType<typeof createRateLimiter> | null;
+  /** Override the click emitter (tests collect; M10 swaps in the outbox). */
+  emitter?: ClickEmitter;
 }
 
 export function createApp(deps: AppDeps = {}): Application {
@@ -55,7 +58,11 @@ export function createApp(deps: AppDeps = {}): Application {
 
   // Route → Controller → Service → Repository → PostgreSQL.
   // Wired here (composition root) so handlers stay constructible in tests.
-  const urlService = new UrlService(new UrlRepository(db), deps.cache ?? new UrlCache(getRedis()));
+  const urlService = new UrlService(
+    new UrlRepository(db),
+    deps.cache ?? new UrlCache(getRedis()),
+    deps.emitter ?? new LogClickEmitter(),
+  );
   const urlsController = createUrlsController(urlService);
 
   // Write-path protection. /health and redirects stay unlimited (liveness

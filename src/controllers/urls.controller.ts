@@ -38,7 +38,13 @@ export function createUrlsController(service: UrlService) {
           res.status(404).json({ error: 'NotFound', message: 'Missing short code' });
           return;
         }
-        const { originalUrl } = await service.resolveUrl(shortCode);
+        const { originalUrl } = await service.resolveUrl(shortCode, {
+          // HTTP-layer facts in, sanitized event out: the service builds the
+          // event via buildClickEvent (IP anonymized, referer stripped).
+          ip: req.ip ?? null,
+          userAgent: req.get('user-agent') ?? null,
+          referer: req.get('referer') ?? null,
+        });
         res.redirect(302, originalUrl);
       } catch (err) {
         next(err);
