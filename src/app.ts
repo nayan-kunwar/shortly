@@ -3,13 +3,15 @@ import express, { type Application, type NextFunction, type Request, type Respon
 import { ZodError } from 'zod';
 import { createUrlsController } from './controllers/urls.controller.js';
 import { UrlCache } from './cache/url-cache.js';
-import { LogClickEmitter, type ClickEmitter } from './analytics/click-event.js';
+import type { ClickEmitter } from './analytics/click-event.js';
 import { db } from './db/db.js';
 import { env } from './config/env.js';
 import { ConflictError } from './errors/conflict-error.js';
 import { GoneError } from './errors/gone-error.js';
 import { NotFoundError } from './errors/not-found-error.js';
 import { UrlRepository } from './repositories/url.repository.js';
+import { OutboxClickEmitter } from './outbox/outbox-emitter.js';
+import { OutboxRepository } from './outbox/outbox-repository.js';
 import { createRateLimiter } from './ratelimit/rate-limiter.js';
 import { getRedis } from './redis/client.js';
 import { healthRouter } from './routes/health.js';
@@ -25,7 +27,7 @@ export interface AppDeps {
    * Redis; pass `null` to disable limiting entirely for a test app.
    */
   rateLimiter?: ReturnType<typeof createRateLimiter> | null;
-  /** Override the click emitter (tests collect; M10 swaps in the outbox). */
+  /** Override the click emitter (tests collect; default persists to outbox). */
   emitter?: ClickEmitter;
 }
 
@@ -61,7 +63,7 @@ export function createApp(deps: AppDeps = {}): Application {
   const urlService = new UrlService(
     new UrlRepository(db),
     deps.cache ?? new UrlCache(getRedis()),
-    deps.emitter ?? new LogClickEmitter(),
+    deps.emitter ?? new OutboxClickEmitter(new OutboxRepository(db)),
   );
   const urlsController = createUrlsController(urlService);
 

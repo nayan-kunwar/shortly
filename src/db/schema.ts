@@ -1,5 +1,17 @@
 import { sql } from 'drizzle-orm';
-import { bigint, boolean, check, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  boolean,
+  check,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
+import type { ClickEvent } from '../analytics/click-event.js';
 
 /**
  * TypeScript source of truth for the `urls` table. Must stay in sync with
@@ -32,4 +44,28 @@ export const urls = pgTable(
   ],
 );
 
-export const schema = { urls };
+/**
+ * Transactional outbox (M10). TypeScript mirror of
+ * `migrations/002_create_outbox.sql` — same sync-by-discipline rule as urls.
+ */
+export const outboxEvents = pgTable(
+  'outbox_events',
+  {
+    id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
+    eventId: uuid('event_id').notNull().unique('outbox_events_event_id_unique').defaultRandom(),
+    eventType: text('event_type').notNull(),
+    payload: jsonb('payload').$type<ClickEvent>().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    publishedAt: timestamp('published_at', { withTimezone: true, mode: 'date' }),
+    attempts: integer('attempts').notNull().default(0),
+    nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true, mode: 'date' }),
+  },
+  (t) => [
+    // Partial index for the publisher poll: pending rows only.
+    index('idx_outbox_pending')
+      .on(t.id)
+      .where(sql`${t.publishedAt} IS NULL`),
+  ],
+);
+
+export const schema = { urls, outboxEvents };
