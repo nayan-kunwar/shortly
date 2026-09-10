@@ -70,6 +70,16 @@ export function createUrlsController(service: UrlService) {
         next(err);
       }
     },
+
+    /** GET /api/v1/urls/:shortCode/analytics. 200 dashboard payload, 404 unknown. */
+    async getAnalytics(req: Request, res: Response, next: NextFunction): Promise<void> {
+      try {
+        const { shortCode } = shortCodeParams.parse(req.params);
+        res.status(200).json(await service.getUrlAnalytics(shortCode));
+      } catch (err) {
+        next(err);
+      }
+    },
   };
 }
 

@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
 import { UrlCache } from '../../src/cache/url-cache.js';
+import { ClickEventRepository } from '../../src/analytics/click-event-repository.js';
 import {
   CollectingClickEmitter,
   noopClickEmitter,
@@ -18,7 +19,12 @@ import { UrlService } from '../../src/services/url.service.js';
 
 // Mutations go through the service (like future M7 routes will) so cache
 // invalidation is exercised, not bypassed.
-const service = new UrlService(new UrlRepository(db), new UrlCache(getRedis()), noopClickEmitter);
+const service = new UrlService(
+  new UrlRepository(db),
+  new UrlCache(getRedis()),
+  noopClickEmitter,
+  new ClickEventRepository(db),
+);
 
 beforeAll(async () => {
   await runMigrations(pool);

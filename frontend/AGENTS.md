@@ -1140,7 +1140,7 @@ Redirect                 GET /:shortCode                       Backend-owned, no
 URL list/search (F3)     (none)                                NOT IN SPEC — needs decision
 URL details (F3)         GET /api/v1/urls/:shortCode           In M19 contract, implementation unplanned
 Deactivate (F3)          DELETE /api/v1/urls/:shortCode         Planned (backend M7)
-Analytics (F4)           GET /api/v1/urls/:shortCode/analytics Planned (backend M13)
+Analytics (F4)           GET /api/v1/urls/:shortCode/analytics EXISTS since backend M13
 Dashboard stats (F5)     (none)                                NOT IN SPEC — needs decision
 Error codes              400/404/409/410 exist; 429 in M8      See mapping in §15
 ```
