@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { UrlCache } from '../../src/cache/url-cache.js';
+import { ClickEventRepository } from '../../src/analytics/click-event-repository.js';
 import { cacheMetrics, resetCacheMetrics } from '../../src/cache/cache-metrics.js';
 import { noopClickEmitter } from '../../src/analytics/click-event.js';
 import { closeDb, db, pool } from '../../src/db/db.js';
@@ -13,7 +14,12 @@ import { UrlService } from '../../src/services/url.service.js';
 
 // Needs real PostgreSQL + Redis: docker compose up -d postgres redis && npm run db:migrate
 
-const service = new UrlService(new UrlRepository(db), new UrlCache(getRedis()), noopClickEmitter);
+const service = new UrlService(
+  new UrlRepository(db),
+  new UrlCache(getRedis()),
+  noopClickEmitter,
+  new ClickEventRepository(db),
+);
 
 beforeAll(async () => {
   await runMigrations(pool);
@@ -101,6 +107,7 @@ describe('redirect cache (cache-aside)', () => {
         new UrlRepository(db),
         new UrlCache(broken),
         noopClickEmitter,
+        new ClickEventRepository(db),
       );
       const found = await degraded.resolveUrl(created.shortCode);
       expect(found.originalUrl).toBe('https://example.com/fallback');

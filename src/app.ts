@@ -3,6 +3,7 @@ import express, { type Application, type NextFunction, type Request, type Respon
 import { ZodError } from 'zod';
 import { createUrlsController } from './controllers/urls.controller.js';
 import { UrlCache } from './cache/url-cache.js';
+import { ClickEventRepository } from './analytics/click-event-repository.js';
 import type { ClickEmitter } from './analytics/click-event.js';
 import { db } from './db/db.js';
 import { env } from './config/env.js';
@@ -64,13 +65,14 @@ export function createApp(deps: AppDeps = {}): Application {
     new UrlRepository(db),
     deps.cache ?? new UrlCache(getRedis()),
     deps.emitter ?? new OutboxClickEmitter(new OutboxRepository(db)),
+    new ClickEventRepository(db),
   );
   const urlsController = createUrlsController(urlService);
 
   // Write-path protection. /health and redirects stay unlimited (liveness
   // and the counting path must never 429); POST and DELETE share one write
-  // budget (both are abuse-relevant). Analytics routes get their own
-  // namespace when they arrive (M13).
+  // budget (both are abuse-relevant). Analytics reads carry their own
+  // namespace so dashboards never consume the write budget.
   const createLimiter =
     deps.rateLimiter !== undefined
       ? deps.rateLimiter
@@ -80,6 +82,19 @@ export function createApp(deps: AppDeps = {}): Application {
           keyPrefix: 'urls:write',
         });
   const urlsRouter = createUrlsRouter(urlsController);
+  // Analytics reads mount BEFORE the write-limited router with their own
+  // namespace. Express matches in registration order: an app.use(path,
+  // limiter, router) claims every sub-path, so a route registered after it
+  // can never exempt itself. Registration order IS the exemption mechanism.
+  app.get(
+    '/api/v1/urls/:shortCode/analytics',
+    createRateLimiter({
+      windowSeconds: env.RATE_LIMIT_WINDOW,
+      maxRequests: env.RATE_LIMIT_MAX_REQUESTS,
+      keyPrefix: 'urls:analytics',
+    }),
+    urlsController.getAnalytics,
+  );
   if (createLimiter !== null) {
     app.use('/api/v1/urls', createLimiter, urlsRouter);
   } else {

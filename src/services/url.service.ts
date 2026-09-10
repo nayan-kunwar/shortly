@@ -2,6 +2,7 @@ import { recordCacheHit, recordCacheMiss } from '../cache/cache-metrics.js';
 import type { CachedEntry, UrlCache } from '../cache/url-cache.js';
 import { buildClickEvent, type ClickContext, type ClickEmitter } from '../analytics/click-event.js';
 import { recordAnalyticsEventCreated } from '../analytics/analytics-metrics.js';
+import type { ClickEventRepository, ClickStats } from '../analytics/click-event-repository.js';
 import { env } from '../config/env.js';
 import { ConflictError } from '../errors/conflict-error.js';
 import { GoneError } from '../errors/gone-error.js';
@@ -17,11 +18,16 @@ export interface CreatedUrl {
   originalUrl: string;
 }
 
+export interface UrlAnalytics extends ClickStats {
+  shortCode: string;
+}
+
 export class UrlService {
   constructor(
     private readonly repo: UrlRepository,
     private readonly cache: UrlCache,
     private readonly emitter: ClickEmitter,
+    private readonly analytics: ClickEventRepository,
   ) {}
 
   /**
@@ -73,6 +79,20 @@ export class UrlService {
     const row = await this.repo.update(shortCode, patch);
     await this.cache.invalidate(shortCode);
     return row;
+  }
+
+  /**
+   * Dashboard read: thin layer over the aggregation repository. 404 when
+   * the URL itself is unknown (M12 returns zeros without knowing URLs).
+   * No freshness guarantee documented beyond eventual consistency (M9–M11).
+   */
+  async getUrlAnalytics(shortCode: string): Promise<UrlAnalytics> {
+    const record = await this.repo.findByShortCode(shortCode);
+    if (record === null) {
+      throw new NotFoundError(`Unknown short code: ${shortCode}`);
+    }
+    const stats = await this.analytics.getStats(shortCode);
+    return { shortCode, ...stats };
   }
 
   /**
