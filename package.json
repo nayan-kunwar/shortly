@@ -16,7 +16,8 @@
     "format:write": "prettier --write .",
     "db:up": "docker compose up -d postgres",
     "db:migrate": "tsx src/db/migrate.ts",
-    "worker:publisher": "tsx src/workers/publisher.ts"
+    "worker:publisher": "tsx src/workers/publisher.ts",
+    "worker:analytics": "tsx src/workers/analytics-worker.ts"
   },
   "engines": {
     "node": ">=20"
