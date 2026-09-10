@@ -23,4 +23,22 @@ beforeAll(() => {
       }),
     });
   }
+  // jsdom has no ResizeObserver; Recharts ResponsiveContainer requires it.
+  if (typeof window.ResizeObserver !== 'function') {
+    class ResizeObserverStub implements ResizeObserver {
+      observe(): void {
+        // Intentional no-op test double.
+      }
+      unobserve(): void {
+        // Intentional no-op test double.
+      }
+      disconnect(): void {
+        // Intentional no-op test double.
+      }
+    }
+    Object.defineProperty(window, 'ResizeObserver', {
+      writable: true,
+      value: ResizeObserverStub,
+    });
+  }
 });
