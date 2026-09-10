@@ -71,8 +71,8 @@ export function createApp(deps: AppDeps = {}): Application {
 
   // Write-path protection. /health and redirects stay unlimited (liveness
   // and the counting path must never 429); POST and DELETE share one write
-  // budget (both are abuse-relevant). Analytics reads carry their own
-  // namespace so dashboards never consume the write budget.
+  // budget (both are abuse-relevant). All read GETs share the read budget
+  // below so dashboards never consume (or get blocked by) writes.
   const createLimiter =
     deps.rateLimiter !== undefined
       ? deps.rateLimiter
@@ -82,19 +82,19 @@ export function createApp(deps: AppDeps = {}): Application {
           keyPrefix: 'urls:write',
         });
   const urlsRouter = createUrlsRouter(urlsController);
-  // Analytics reads mount BEFORE the write-limited router with their own
-  // namespace. Express matches in registration order: an app.use(path,
-  // limiter, router) claims every sub-path, so a route registered after it
-  // can never exempt itself. Registration order IS the exemption mechanism.
-  app.get(
-    '/api/v1/urls/:shortCode/analytics',
-    createRateLimiter({
-      windowSeconds: env.RATE_LIMIT_WINDOW,
-      maxRequests: env.RATE_LIMIT_MAX_REQUESTS,
-      keyPrefix: 'urls:analytics',
-    }),
-    urlsController.getAnalytics,
-  );
+  // Read GETs mount BEFORE the write-limited router under the shared read
+  // namespace (dashboards + management). Express matches in registration
+  // order: an app.use(path, limiter, router) claims every sub-path, so a
+  // route registered after it can never exempt itself. Registration order
+  // IS the exemption mechanism (M13 lesson, applied to all reads).
+  const readLimiter = createRateLimiter({
+    windowSeconds: env.RATE_LIMIT_WINDOW,
+    maxRequests: env.RATE_LIMIT_MAX_REQUESTS,
+    keyPrefix: 'urls:read',
+  });
+  app.get('/api/v1/urls', readLimiter, urlsController.listUrls);
+  app.get('/api/v1/urls/:shortCode', readLimiter, urlsController.getUrlDetails);
+  app.get('/api/v1/urls/:shortCode/analytics', readLimiter, urlsController.getAnalytics);
   if (createLimiter !== null) {
     app.use('/api/v1/urls', createLimiter, urlsRouter);
   } else {

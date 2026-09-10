@@ -1137,8 +1137,8 @@ If the backend API does not currently support something required by the UI, clea
 UI need                  Backend endpoint                      Status
 Create form (F2)         POST /api/v1/urls                     EXISTS (201)
 Redirect                 GET /:shortCode                       Backend-owned, no FE work
-URL list/search (F3)     (none)                                NOT IN SPEC — needs decision
-URL details (F3)         GET /api/v1/urls/:shortCode           In M19 contract, implementation unplanned
+URL list/search (F3)     GET /api/v1/urls (cursor page)        EXISTS (list milestone)
+URL details (F3)         GET /api/v1/urls/:shortCode           EXISTS (list milestone)
 Deactivate (F3)          DELETE /api/v1/urls/:shortCode         Planned (backend M7)
 Analytics (F4)           GET /api/v1/urls/:shortCode/analytics EXISTS since backend M13
 Dashboard stats (F5)     (none)                                NOT IN SPEC — needs decision
