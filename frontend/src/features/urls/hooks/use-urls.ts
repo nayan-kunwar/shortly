@@ -8,14 +8,11 @@ export const urlKeys = {
 };
 
 /** Paginated URL list (cursor infinite query). Search keys a separate cache. */
-export function useUrls(search: string) {
+export function useUrls(search: string, limit = 20) {
   return useInfiniteQuery({
     queryKey: urlKeys.list(search),
     queryFn: ({ pageParam, signal }) =>
-      listUrls(
-        { limit: 20, cursor: pageParam, search: search === '' ? undefined : search },
-        signal,
-      ),
+      listUrls({ limit, cursor: pageParam, search: search === '' ? undefined : search }, signal),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
