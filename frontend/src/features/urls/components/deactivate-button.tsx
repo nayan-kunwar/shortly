@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '../../../components/ui/button';
 import { useDeactivateUrl } from '../hooks/use-urls';
 
 /**
@@ -23,8 +24,9 @@ export function DeactivateButton({
 
   return (
     <div className="flex flex-col gap-1">
-      <button
+      <Button
         type="button"
+        variant="danger"
         disabled={disabled === true || mutation.isPending}
         onClick={() => {
           if (armed) {
@@ -33,10 +35,9 @@ export function DeactivateButton({
             setArmed(true);
           }
         }}
-        className="rounded-md border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/30"
       >
         {mutation.isPending ? 'Deactivating…' : armed ? 'Confirm deactivate' : 'Deactivate'}
-      </button>
+      </Button>
       {mutation.isError && (
         <p role="alert" className="text-sm text-red-600">
           Could not deactivate. Please try again.
