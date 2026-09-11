@@ -17,6 +17,7 @@ import { createRateLimiter } from './ratelimit/rate-limiter.js';
 import { getRedis } from './redis/client.js';
 import { healthRouter } from './routes/health.js';
 import { createRedirectRouter } from './routes/redirect.js';
+import { createStatsRouter } from './routes/stats.js';
 import { createUrlsRouter } from './routes/urls.js';
 import { UrlService } from './services/url.service.js';
 
@@ -95,6 +96,7 @@ export function createApp(deps: AppDeps = {}): Application {
   app.get('/api/v1/urls', readLimiter, urlsController.listUrls);
   app.get('/api/v1/urls/:shortCode', readLimiter, urlsController.getUrlDetails);
   app.get('/api/v1/urls/:shortCode/analytics', readLimiter, urlsController.getAnalytics);
+  app.use('/api/v1/stats', readLimiter, createStatsRouter(urlsController));
   if (createLimiter !== null) {
     app.use('/api/v1/urls', createLimiter, urlsRouter);
   } else {

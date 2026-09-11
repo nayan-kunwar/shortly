@@ -1,4 +1,4 @@
-import { count, desc, eq, lte, sql } from 'drizzle-orm';
+import { count, desc, eq, gte, lte, sql } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import type { Db } from '../db/db.js';
 import { clickEvents } from '../db/schema.js';
@@ -132,6 +132,15 @@ export class ClickEventRepository {
       .select({ count: count() })
       .from(clickEvents)
       .where(eq(clickEvents.shortCode, shortCode));
+    return rows[0]?.count ?? 0;
+  }
+
+  /** Global click total, optionally since a timestamp (dashboard "today"). */
+  async countAll(since?: Date | undefined): Promise<number> {
+    const rows = await this.db
+      .select({ count: count() })
+      .from(clickEvents)
+      .where(since !== undefined ? gte(clickEvents.clickedAt, since) : undefined);
     return rows[0]?.count ?? 0;
   }
 }

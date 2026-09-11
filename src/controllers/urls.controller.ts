@@ -81,6 +81,15 @@ export function createUrlsController(service: UrlService) {
       }
     },
 
+    /** GET /api/v1/stats. Global dashboard totals, no params. */
+    async getGlobalStats(_req: Request, res: Response, next: NextFunction): Promise<void> {
+      try {
+        res.status(200).json(await service.getGlobalStats());
+      } catch (err) {
+        next(err);
+      }
+    },
+
     /** GET /api/v1/urls (keyset page). Query validated, 400 on garbage. */
     async listUrls(req: Request, res: Response, next: NextFunction): Promise<void> {
       try {
