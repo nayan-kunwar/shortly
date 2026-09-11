@@ -75,6 +75,17 @@ describe('CreateUrlForm', () => {
     expect(await screen.findByText('This custom alias is already in use.')).toBeTruthy();
   });
 
+  it('maps a 429 to the rate-limit message', async () => {
+    const user = userEvent.setup();
+    mockJson({ error: 'TooManyRequests', message: 'slow down' }, 429);
+    renderForm();
+
+    await user.type(screen.getByLabelText(/original url/i), 'https://example.com');
+    await user.click(screen.getByRole('button', { name: /create short url/i }));
+
+    expect(await screen.findByText('Too many requests. Please try again later.')).toBeTruthy();
+  });
+
   it('shows a root error when the backend is unreachable', async () => {
     const user = userEvent.setup();
     vi.stubGlobal(

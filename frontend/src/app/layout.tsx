@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Navbar, Sidebar } from '../components/layout/navbar';
 import { ThemeProvider } from '../components/layout/theme-provider';
+import { OfflineBanner } from '../components/common/offline-banner';
 import { QueryProvider } from '../lib/query-client/provider';
 
 export const metadata: Metadata = {
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <ThemeProvider>
           <QueryProvider>
+            <OfflineBanner />
             <Navbar />
             <div className="mx-auto flex max-w-6xl">
               <Sidebar />

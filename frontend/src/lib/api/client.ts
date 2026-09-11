@@ -41,6 +41,8 @@ export interface ApiRequestOptions {
   method?: string;
   body?: unknown;
   signal?: AbortSignal;
+  /** Abort the request after this many ms (default 15s — fail fast, not hang). */
+  timeoutMs?: number;
 }
 
 interface BackendErrorBody {
@@ -54,18 +56,30 @@ interface BackendErrorBody {
 /**
  * Centralized fetch wrapper — the only place that talks HTTP (§12).
  * Throws ShortlyApiError on non-2xx; returns parsed JSON otherwise.
+ * Every request carries a timeout: a hung network must surface as an
+ * error, never an eternal spinner.
  */
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, signal } = options;
+  const { method = 'GET', body, signal, timeoutMs = 15_000 } = options;
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  const combined =
+    signal === undefined
+      ? timeoutSignal
+      : typeof AbortSignal.any === 'function'
+        ? AbortSignal.any([signal, timeoutSignal])
+        : signal;
   let res: Response;
   try {
     res = await fetch(`${getApiBaseUrl()}${path}`, {
       method,
       headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
       body: body !== undefined ? JSON.stringify(body) : undefined,
-      signal,
+      signal: combined,
     });
   } catch (err) {
+    if (err instanceof DOMException && err.name === 'TimeoutError') {
+      throw new ShortlyApiError(0, 'TimeoutError', 'Request timed out. Please try again.', err);
+    }
     throw new ShortlyApiError(
       0,
       'NetworkError',

@@ -57,4 +57,22 @@ describe('apiRequest', () => {
     expect(err).toBeInstanceOf(ShortlyApiError);
     expect((err as ShortlyApiError).code).toBe('NetworkError');
   });
+
+  it('aborts hung requests with a friendly TimeoutError', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_url: unknown, options?: { signal?: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            options?.signal?.addEventListener('abort', () => {
+              reject(new DOMException('signal timed out', 'TimeoutError'));
+            });
+          }),
+      ),
+    );
+    const err = await apiRequest('/health', { timeoutMs: 50 }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ShortlyApiError);
+    expect((err as ShortlyApiError).code).toBe('TimeoutError');
+    expect((err as ShortlyApiError).message).toBe('Request timed out. Please try again.');
+  });
 });
