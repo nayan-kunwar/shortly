@@ -76,6 +76,10 @@ export function CreateUrlForm() {
             setError('customAlias', { message: 'This custom alias is already in use.' });
             return;
           }
+          if (err instanceof ShortlyApiError && err.isRateLimited) {
+            setError('root', { message: 'Too many requests. Please try again later.' });
+            return;
+          }
           setError('root', {
             message: err instanceof Error ? err.message : 'Something went wrong.',
           });
