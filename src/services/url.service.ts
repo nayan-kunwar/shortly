@@ -35,6 +35,13 @@ export interface UrlAnalytics extends ClickStats {
   shortCode: string;
 }
 
+export interface GlobalStats {
+  totalUrls: number;
+  activeUrls: number;
+  totalClicks: number;
+  clicksToday: number;
+}
+
 export class UrlService {
   constructor(
     private readonly repo: UrlRepository,
@@ -106,6 +113,24 @@ export class UrlService {
     }
     const stats = await this.analytics.getStats(shortCode);
     return { shortCode, ...stats };
+  }
+
+  /**
+   * Dashboard totals. Four COUNT(*) queries, no joins, no filters beyond
+   * indexed flags. "Today" is a UTC day boundary — documented, timezone-
+   * free, and consistent across instances regardless of server locale.
+   */
+  async getGlobalStats(now: Date = new Date()): Promise<GlobalStats> {
+    const startOfTodayUtc = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
+    const [totalUrls, activeUrls, totalClicks, clicksToday] = await Promise.all([
+      this.repo.countUrls(false),
+      this.repo.countUrls(true),
+      this.analytics.countAll(),
+      this.analytics.countAll(startOfTodayUtc),
+    ]);
+    return { totalUrls, activeUrls, totalClicks, clicksToday };
   }
 
   /**

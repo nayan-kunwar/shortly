@@ -159,6 +159,15 @@ export class UrlRepository {
     return row === undefined ? null : toRecord(row);
   }
 
+  /** Global counters for the dashboard. Plain COUNT(*) — no filters to index. */
+  async countUrls(activeOnly: boolean): Promise<number> {
+    const rows = await this.db
+      .select({ count: count() })
+      .from(urls)
+      .where(activeOnly ? eq(urls.isActive, true) : undefined);
+    return rows[0]?.count ?? 0;
+  }
+
   /**
    * Keyset page, newest first. No COUNT(*): total counts tax every list call
    * on a growing table; the client pages until nextCursor is null.
