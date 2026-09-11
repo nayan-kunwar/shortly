@@ -1,6 +1,7 @@
 'use client';
 
 import { useDeferredValue, useState } from 'react';
+import { TextInput } from '../../components/ui/input';
 import { useUrls } from '../../features/urls/hooks/use-urls';
 import { UrlTable } from '../../features/urls/components/url-table';
 
@@ -20,14 +21,13 @@ export default function UrlsPage() {
         <label htmlFor="url-search" className="sr-only">
           Search URLs
         </label>
-        <input
+        <TextInput
           id="url-search"
           type="search"
           placeholder="Search codes or destinations…"
           autoComplete="off"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
         />
       </div>
 

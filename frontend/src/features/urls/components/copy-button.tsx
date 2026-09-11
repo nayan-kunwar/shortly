@@ -2,6 +2,7 @@
 
 import { Check, Copy } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { Button } from '../../../components/ui/button';
 
 /** Reusable copy button (§16): absolute shortUrl verbatim, accessible feedback. */
 export function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) {
@@ -26,14 +27,9 @@ export function CopyButton({ text, label = 'Copy' }: { text: string; label?: str
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => void copy()}
-      aria-live="polite"
-      className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-gray-900"
-    >
+    <Button type="button" onClick={() => void copy()} aria-live="polite">
       {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
       {copied ? 'Copied' : label}
-    </button>
+    </Button>
   );
 }

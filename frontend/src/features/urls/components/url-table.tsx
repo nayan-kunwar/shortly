@@ -47,6 +47,9 @@ export function UrlTable({ items }: { items: UrlListItem[] }) {
               Created
             </th>
             <th scope="col" className="px-4 py-3 font-medium">
+              Expires
+            </th>
+            <th scope="col" className="px-4 py-3 font-medium">
               Status
             </th>
             <th scope="col" className="px-4 py-3 font-medium">
@@ -67,6 +70,9 @@ export function UrlTable({ items }: { items: UrlListItem[] }) {
               <td className="px-4 py-3 tabular-nums">{item.clicks}</td>
               <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
                 {formatDate(item.createdAt)}
+              </td>
+              <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                {formatDate(item.expiresAt)}
               </td>
               <td className="px-4 py-3">
                 <UrlStatusBadge isActive={item.isActive} expiresAt={item.expiresAt} />

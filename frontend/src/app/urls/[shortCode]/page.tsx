@@ -55,6 +55,14 @@ export default function UrlDetailPage({ params }: { params: Promise<{ shortCode:
 
       <div className="mt-6 flex flex-wrap gap-2">
         <CopyButton text={url.shortUrl} />
+        <a
+          href={url.originalUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-gray-900"
+        >
+          Open URL
+        </a>
         <Link
           href={`/urls/${encodeURIComponent(url.shortCode)}/analytics`}
           className="inline-flex items-center rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-gray-900"

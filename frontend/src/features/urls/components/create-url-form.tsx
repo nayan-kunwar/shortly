@@ -5,6 +5,8 @@ import type { Resolver } from 'react-hook-form';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { ShortlyApiError } from '../../../lib/api/client';
+import { Button } from '../../../components/ui/button';
+import { FieldError, TextInput } from '../../../components/ui/input';
 import { useCreateUrl } from '../hooks/use-create-url';
 import { createUrlSchema, customAliasRule } from '../schemas/create-url';
 import { CreateResult } from './create-result';
@@ -29,9 +31,6 @@ const formSchema = createUrlSchema.omit({ expiresAt: true, customAlias: true }).
 });
 
 type FormValues = z.infer<typeof formSchema>;
-
-const inputClass =
-  'w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900';
 
 /** URL creation form: RHF + mirrored Zod, backend errors mapped to fields. */
 export function CreateUrlForm() {
@@ -108,55 +107,36 @@ export function CreateUrlForm() {
         <label htmlFor="create-url" className="mb-1 block text-sm font-medium">
           Original URL
         </label>
-        <input
+        <TextInput
           id="create-url"
           type="url"
           placeholder="https://example.com/very/long/url"
           autoComplete="off"
-          className={inputClass}
           {...register('url')}
         />
-        {errors.url !== undefined && (
-          <p role="alert" className="mt-1 text-sm text-red-600">
-            {errors.url.message}
-          </p>
-        )}
+        <FieldError message={errors.url?.message} />
       </div>
 
       <div>
         <label htmlFor="create-alias" className="mb-1 block text-sm font-medium">
           Custom alias <span className="font-normal text-gray-500">(optional)</span>
         </label>
-        <input
+        <TextInput
           id="create-alias"
           type="text"
           placeholder="github"
           autoComplete="off"
-          className={inputClass}
           {...register('customAlias')}
         />
-        {errors.customAlias !== undefined && (
-          <p role="alert" className="mt-1 text-sm text-red-600">
-            {errors.customAlias.message}
-          </p>
-        )}
+        <FieldError message={errors.customAlias?.message} />
       </div>
 
       <div>
         <label htmlFor="create-expires" className="mb-1 block text-sm font-medium">
           Expiration <span className="font-normal text-gray-500">(optional)</span>
         </label>
-        <input
-          id="create-expires"
-          type="datetime-local"
-          className={inputClass}
-          {...register('expiresAt')}
-        />
-        {errors.expiresAt !== undefined && (
-          <p role="alert" className="mt-1 text-sm text-red-600">
-            {errors.expiresAt.message}
-          </p>
-        )}
+        <TextInput id="create-expires" type="datetime-local" {...register('expiresAt')} />
+        <FieldError message={errors.expiresAt?.message} />
       </div>
 
       {errors.root !== undefined && (
@@ -165,13 +145,9 @@ export function CreateUrlForm() {
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={busy}
-        className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-gray-900"
-      >
+      <Button type="submit" variant="primary" disabled={busy}>
         {busy ? 'Creating…' : 'Create short URL'}
-      </button>
+      </Button>
     </form>
   );
 }
