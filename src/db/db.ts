@@ -12,7 +12,10 @@ export const pool: Pool = new Pool({
   // capacity-planning knob in M21, not a guess today.
   max: 10,
   idleTimeoutMillis: 30_000,
+  // Bounded waits (M15): a hung database must surface as an error, never
+  // an eternally pending request. 5s to connect, 10s per statement.
   connectionTimeoutMillis: 5_000,
+  statement_timeout: 10_000,
 });
 
 pool.on('error', (err) => {
