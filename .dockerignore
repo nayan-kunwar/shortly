@@ -1,0 +1,11 @@
+# Keep the build context small and secret-free.
+node_modules/
+dist/
+coverage/
+.git/
+.env
+.env.local
+frontend/
+*.log
+.DS_Store
+.vscode/

@@ -1,3 +1,4 @@
+import globals from 'globals';
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import prettierConfig from 'eslint-config-prettier';
@@ -11,6 +12,11 @@ export default tseslint.config(
   ...tseslint.configs.strict,
   ...tseslint.configs.stylistic,
   prettierConfig,
+  {
+    // Plain-JS ops scripts run on Node (no tsconfig coverage).
+    files: ['scripts/**/*.js'],
+    languageOptions: { globals: globals.node },
+  },
   {
     rules: {
       'no-console': 'off',
