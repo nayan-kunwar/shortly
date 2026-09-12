@@ -2,6 +2,10 @@
 # redis, rabbitmq, api and nginx services.
 # Milestone 5: redis added (cache-aside for redirects).
 # Milestone 10: rabbitmq added (analytics event transport).
+# Milestone 16: api + workers added. `docker compose up` boots the whole
+# system. For LOCAL development (code on host, deps in containers), start
+# only infra instead: `docker compose up postgres redis rabbitmq`
+# (the api container would fight local `npm run dev` for port 3000).
 services:
   postgres:
     image: postgres:16-alpine
@@ -52,6 +56,75 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+
+  # --- Application services (M16) -------------------------------------
+  # One image, three commands. Service hostnames (postgres/redis/rabbitmq)
+  # replace localhost inside containers; host .env keeps localhost for npm dev.
+  api:
+    build: .
+    container_name: shortly-api
+    restart: unless-stopped
+    ports:
+      - '${PORT:-3000}:3000'
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      BASE_URL: ${BASE_URL:-http://localhost:3000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: postgres://${POSTGRES_USER:-shortly}:${POSTGRES_PASSWORD:-shortly}@postgres:5432/${POSTGRES_DB:-shortly}
+      REDIS_URL: redis://redis:6379
+      REDIS_TTL: ${REDIS_TTL:-3600}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001}
+      RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-60}
+      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-100}
+    command: sh -c "node dist/db/migrate.js && node dist/server.js"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      # Probe script (not inline node -e): backticks in CMD-SHELL strings
+      # trigger shell command substitution and break silently.
+      test: ['CMD', 'node', 'scripts/docker-healthcheck.js']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  publisher:
+    build: .
+    container_name: shortly-publisher
+    restart: unless-stopped
+    command: node dist/workers/publisher.js
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: postgres://${POSTGRES_USER:-shortly}:${POSTGRES_PASSWORD:-shortly}@postgres:5432/${POSTGRES_DB:-shortly}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  analytics-worker:
+    build: .
+    container_name: shortly-analytics-worker
+    restart: unless-stopped
+    command: node dist/workers/analytics-worker.js
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: postgres://${POSTGRES_USER:-shortly}:${POSTGRES_PASSWORD:-shortly}@postgres:5432/${POSTGRES_DB:-shortly}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
 volumes:
   pgdata:
