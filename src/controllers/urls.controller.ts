@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { NextFunction, Request, Response } from 'express';
 import { NotFoundError } from '../errors/not-found-error.js';
+import { redirectRequestsTotal, urlCreationTotal } from '../observability/http-metrics.js';
 import type { UrlService } from '../services/url.service.js';
 import { createUrlSchema, listUrlsQuerySchema } from '../validators/url.validator.js';
 
@@ -20,6 +21,7 @@ export function createUrlsController(service: UrlService) {
       try {
         const input = createUrlSchema.parse(req.body);
         const result = await service.createShortUrl(input);
+        urlCreationTotal.inc();
         res.status(201).json(result);
       } catch (err) {
         next(err);
@@ -45,6 +47,7 @@ export function createUrlsController(service: UrlService) {
           userAgent: req.get('user-agent') ?? null,
           referer: req.get('referer') ?? null,
         });
+        redirectRequestsTotal.inc();
         res.redirect(302, originalUrl);
       } catch (err) {
         next(err);
