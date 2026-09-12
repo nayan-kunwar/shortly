@@ -22,6 +22,7 @@ import {
 } from './observability/http-metrics.js';
 import { healthRouter } from './routes/health.js';
 import { metricsRouter, readyRouter } from './routes/observability.js';
+import { docsRouter } from './routes/docs.js';
 import { createRedirectRouter } from './routes/redirect.js';
 import { createStatsRouter } from './routes/stats.js';
 import { createUrlsRouter } from './routes/urls.js';
@@ -79,6 +80,11 @@ export function createApp(deps: AppDeps = {}): Application {
   // single-segment GETs that the redirect router would swallow as codes.
   app.use('/ready', readyRouter);
   app.use('/metrics', metricsRouter);
+  // API docs (Swagger UI + raw JSON). Development only: no docs surface
+  // in production, and /docs* would otherwise read as short codes.
+  if (env.NODE_ENV !== 'production') {
+    app.use('/', docsRouter);
+  }
 
   // Route → Controller → Service → Repository → PostgreSQL.
   // Wired here (composition root) so handlers stay constructible in tests.

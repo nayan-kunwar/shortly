@@ -23,6 +23,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^7.3.4",
     "amqplib": "^0.10.9",
     "cors": "^2.8.6",
     "dotenv": "^16.4.5",
@@ -30,6 +31,7 @@
     "express": "5.2.1",
     "ioredis": "^6.0.0",
     "pg": "^8.23.0",
+    "swagger-ui-express": "^5.0.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -40,6 +42,7 @@
     "@types/node": "^22.7.0",
     "@types/pg": "^8.23.1",
     "@types/supertest": "^6.0.2",
+    "@types/swagger-ui-express": "^4.1.8",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.13.0",
     "eslint-config-prettier": "^9.1.0",
