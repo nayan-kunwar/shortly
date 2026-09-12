@@ -16,6 +16,8 @@ describe('GET /health', () => {
     expect(res.headers['content-type']).toMatch(/json/);
     expect(res.body).toMatchObject({ status: 'ok' });
     expect(typeof res.body.uptime).toBe('number');
+    // Instance identity (M17): load-balancer balancing is observable.
+    expect(typeof res.body.instance).toBe('string');
   });
 
   it('returns 404 for unknown routes (Express 5 fallback)', async () => {
