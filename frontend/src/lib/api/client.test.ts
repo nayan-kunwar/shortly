@@ -58,6 +58,14 @@ describe('apiRequest', () => {
     expect((err as ShortlyApiError).code).toBe('NetworkError');
   });
 
+  it('dispatches api-success evidence on 2xx for the offline banner', async () => {
+    const seen: string[] = [];
+    window.addEventListener('shortly:api-success', () => seen.push('success'));
+    mockFetchOnce({ status: 'ok' }, { status: 200, ok: true });
+    await apiRequest('/health');
+    expect(seen).toHaveLength(1);
+  });
+
   it('aborts hung requests with a friendly TimeoutError', async () => {
     vi.stubGlobal(
       'fetch',
