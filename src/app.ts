@@ -43,6 +43,11 @@ export function createApp(deps: AppDeps = {}): Application {
   const app = express();
 
   app.disable('x-powered-by');
+  // Exactly one trusted proxy hop (Nginx, M17). Trusts X-Forwarded-For for
+  // req.ip (rate limiting sees real clients, not the LB) while direct
+  // connections (healthchecks, local dev) are unaffected — no XFF, no parse.
+  // Never `true`: trusting all hops lets spoofed XFFs forge client IPs.
+  app.set('trust proxy', 1);
   // Request context + access log first: the finish listener must attach to
   // every request, and ids must exist before any log line (route patterns
   // are read lazily at finish time, so order vs routers doesn't matter).
