@@ -53,8 +53,14 @@ function publish(payload: unknown, messageId: string = randomUUID()): void {
   });
 }
 
-async function clickCount(): Promise<number> {
-  const res = await pool.query<{ count: string }>('SELECT COUNT(*) AS count FROM click_events');
+async function clickCount(code?: string): Promise<number> {
+  const res =
+    code === undefined
+      ? await pool.query<{ count: string }>('SELECT COUNT(*) AS count FROM click_events')
+      : await pool.query<{ count: string }>(
+          'SELECT COUNT(*) AS count FROM click_events WHERE short_code = $1',
+          [code],
+        );
   return Number(res.rows[0]?.count ?? 0);
 }
 
@@ -81,11 +87,12 @@ describe('analytics worker', () => {
     const messageId = randomUUID();
     const payload = buildClickEvent({ shortCode: 'w2', ip: null, userAgent: null, referer: null });
     publish(payload, messageId);
-    await waitFor(async () => (await clickCount()) === 1);
+    await waitFor(async () => (await clickCount('w2')) === 1);
 
     publish(payload, messageId);
     await new Promise((resolve) => setTimeout(resolve, 800));
-    expect(await clickCount()).toBe(1);
+    // Scoped to our code: immune to rows other suites may leave behind.
+    expect(await clickCount('w2')).toBe(1);
   });
 
   it('routes unparseable payloads to the DLQ, never the table', async () => {
