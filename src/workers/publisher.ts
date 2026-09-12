@@ -68,8 +68,10 @@ export async function startPublisherLoop(db: Db): Promise<never> {
     } catch (err) {
       // Broker down, DB down, anything: back off, retry forever. The outbox
       // rows wait (with growing next_attempt_at); redirects never notice.
+      // Jitter breaks lockstep restarts across publisher replicas (M15:
+      // no thundering herd after a shared outage clears).
       console.error(`Publisher error (retrying): ${(err as Error).message}`);
-      await sleep(ERROR_BACKOFF_MS);
+      await sleep(ERROR_BACKOFF_MS + Math.floor(Math.random() * 5000));
     }
   }
 }

@@ -8,6 +8,7 @@ import type { ClickEmitter } from './analytics/click-event.js';
 import { db } from './db/db.js';
 import { env } from './config/env.js';
 import { ConflictError } from './errors/conflict-error.js';
+import { isDatabaseUnavailable, ServiceUnavailableError } from './errors/database-error.js';
 import { GoneError } from './errors/gone-error.js';
 import { NotFoundError } from './errors/not-found-error.js';
 import { UrlRepository } from './repositories/url.repository.js';
@@ -162,6 +163,14 @@ export function createApp(deps: AppDeps = {}): Application {
         message: err.message,
         reason: err.reason,
       });
+      return;
+    }
+    if (err instanceof ServiceUnavailableError || isDatabaseUnavailable(err)) {
+      // The source of truth is unreachable: 503 (retryable, drainable),
+      // never 500 (which claims a bug). Message only — no driver detail.
+      const message =
+        err instanceof ServiceUnavailableError ? err.message : 'Service temporarily unavailable.';
+      res.status(503).json({ error: 'ServiceUnavailable', message });
       return;
     }
     const message = err instanceof Error ? err.message : 'Internal Server Error';
