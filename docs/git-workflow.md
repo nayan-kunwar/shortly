@@ -89,3 +89,16 @@ Tag scheme: `m<N>-done` (e.g. `m1-done`, `m2-done`).
 
 Milestone branches are **kept, not deleted** — `git branch` doubles as the
 milestone index, and `git tag` lists the production checkpoints on `main`.
+
+## Rule 6: fix branches (one problem per branch)
+
+Bugfixes and chores follow the milestone flow minus the tag:
+
+- Branch: `fix/<short-name>` (bugs) or `chore/<short-name>` (hygiene), off `main`.
+- Commits: `fix(<scope>):` / `docs:` / `chore:` — same format as Rule 3.
+- Verification: the full six-step checklist (Rule 4). No merging red work,
+  however small the fix.
+- Merge `--no-ff` to `main`, push branch + `main`. No tag (tags mark milestones).
+- One problem per branch: separate truthful commit messages deserve separate
+  branches. Branches are cheap; reviewability and clean reverts are the point.
+  The only exception is mechanical unity (a fix plus its test).

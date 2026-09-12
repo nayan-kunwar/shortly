@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from './env';
+import { recordApiSuccess } from './api-signal';
 
 /**
  * Typed error mirroring the backend contract (§15, §30 of the frontend spec).
@@ -89,7 +90,14 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   }
 
   if (res.ok) {
-    return (await res.json()) as T;
+    const data = (await res.json()) as T;
+    // Evidence of connectivity for the offline banner: observed success
+    // beats the browser's connectivity signal (which false-positives).
+    recordApiSuccess();
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('shortly:api-success'));
+    }
+    return data;
   }
 
   let parsed: BackendErrorBody = {};
