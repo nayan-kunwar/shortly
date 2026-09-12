@@ -15,7 +15,12 @@ import { OutboxClickEmitter } from './outbox/outbox-emitter.js';
 import { OutboxRepository } from './outbox/outbox-repository.js';
 import { createRateLimiter } from './ratelimit/rate-limiter.js';
 import { getRedis } from './redis/client.js';
+import {
+  requestContextMiddleware,
+  requestLoggingMiddleware,
+} from './observability/http-metrics.js';
 import { healthRouter } from './routes/health.js';
+import { metricsRouter, readyRouter } from './routes/observability.js';
 import { createRedirectRouter } from './routes/redirect.js';
 import { createStatsRouter } from './routes/stats.js';
 import { createUrlsRouter } from './routes/urls.js';
@@ -37,6 +42,11 @@ export function createApp(deps: AppDeps = {}): Application {
   const app = express();
 
   app.disable('x-powered-by');
+  // Request context + access log first: the finish listener must attach to
+  // every request, and ids must exist before any log line (route patterns
+  // are read lazily at finish time, so order vs routers doesn't matter).
+  app.use(requestContextMiddleware);
+  app.use(requestLoggingMiddleware);
   app.use(express.json({ limit: '100kb' }));
 
   // CORS for local frontend development only. Disabled in production, where
@@ -59,6 +69,10 @@ export function createApp(deps: AppDeps = {}): Application {
   }
 
   app.use('/health', healthRouter);
+  // /ready and /metrics join the must-register-before-redirect set:
+  // single-segment GETs that the redirect router would swallow as codes.
+  app.use('/ready', readyRouter);
+  app.use('/metrics', metricsRouter);
 
   // Route → Controller → Service → Repository → PostgreSQL.
   // Wired here (composition root) so handlers stay constructible in tests.
