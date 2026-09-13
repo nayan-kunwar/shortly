@@ -6,7 +6,7 @@ WORKDIR /app
 COPY packages/shared/package.json packages/shared/package-lock.json* packages/shared/
 COPY apps/api/package.json apps/api/package-lock.json* apps/api/
 COPY apps/web/package.json apps/web/package-lock.json* apps/web/
-COPY pnpm-workspace.yaml package.json ./
+COPY .npmrc tsconfig.base.json pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 # Install pnpm and dependencies
 RUN npm install -g pnpm && pnpm install --frozen-lockfile
 # Build shared package
@@ -31,7 +31,7 @@ RUN npm install -g pnpm
 # Copy workspace structure
 COPY packages/shared/package.json packages/shared/
 COPY apps/api/package.json apps/api/
-COPY pnpm-workspace.yaml package.json ./
+COPY .npmrc pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 RUN pnpm install --prod --frozen-lockfile
 # Copy built artifacts
 COPY --from=builder /app/packages/shared/dist packages/shared/dist

@@ -5,7 +5,9 @@ coverage/
 .git/
 .env
 .env.local
-frontend/
 *.log
 .DS_Store
 .vscode/
+apps/web/src/
+apps/web/e2e/
+apps/web/.next/
