@@ -2,18 +2,20 @@
 
 Nothing here starts anything. Copy-paste as needed.
 
-Working directories matter: backend commands run from the repo root,
-frontend commands from `frontend/`. (`dotenv` loads `.env` from the process
-working directory — starting the backend elsewhere silently misconfigures it,
-typically as auth failures against the wrong PostgreSQL.)
+Working directories matter: backend commands use `pnpm --filter @shortly/api`,
+frontend uses `pnpm --filter @shortly/web`. (`dotenv` loads `.env` from the
+process working directory — starting the backend elsewhere silently
+misconfigures it, typically as auth failures against the wrong PostgreSQL.)
 
 ## Infrastructure (repo root)
 
 ```bash
+cd infrastructure
 docker compose up -d postgres redis rabbitmq   # start all three
 docker compose ps                              # status
-npm run db:migrate                             # apply pending migrations (after up)
+cd .. && pnpm --filter @shortly/api run db:migrate  # apply pending migrations (after up)
 
+cd infrastructure
 docker compose stop                            # stop containers, keep data
 docker compose down                            # stop + remove containers (volumes kept)
 ```
@@ -24,7 +26,7 @@ itself is down — start it first, then `docker compose up -d`.
 ## Full Docker stack (repo root)
 
 ```bash
-docker compose up -d                           # everything: infra + API replicas + workers + Nginx
+cd infrastructure && docker compose up -d      # everything: infra + API replicas + workers + Nginx
 docker compose ps                              # all services
 docker compose logs -f api                     # follow API logs
 docker compose restart api                     # restart one service
@@ -35,11 +37,12 @@ Services: `postgres`, `redis`, `rabbitmq`, `api` (:3000), `api-2` (:3001),
 `worker:publisher`, `worker:analytics`, `nginx` (:8080 → round-robin
 across both API replicas).
 
-## Backend API (repo root, port 3000)
+## Backend API (port 3000)
 
 ```bash
-npm run dev          # watch mode (tsx)
-node dist/server.js  # production (run `npm run build` first)
+pnpm --filter @shortly/api run dev          # watch mode (tsx)
+pnpm --filter @shortly/api run build        # TypeScript compilation
+pnpm --filter @shortly/api exec node dist/server.js  # production
 ```
 
 Health: `curl http://localhost:3000/health`
@@ -75,11 +78,11 @@ Generated from live Zod validators — never hand-edit the spec; change the
 validator and the spec follows. Route is mounted only outside production
 to avoid `/docs*` collisions with short codes.
 
-## Workers (repo root, one foreground terminal each)
+## Workers (one foreground terminal each)
 
 ```bash
-npm run worker:publisher   # outbox → RabbitMQ relay loop
-npm run worker:analytics   # RabbitMQ → click_events consumer loop
+pnpm --filter @shortly/api run worker:publisher   # outbox → RabbitMQ relay loop
+pnpm --filter @shortly/api run worker:analytics   # RabbitMQ → click_events consumer loop
 ```
 
 Both die on `Ctrl+C`. Do not background them with `&` for demos: orphaned
@@ -88,11 +91,12 @@ drain looks wrong, check `consumerCount` on `analytics.clicks` via the
 management UI (`http://localhost:15672`, guest/guest) — anything above 0
 with nothing running means a stray.
 
-## Frontend (from `frontend/`, port 3001)
+## Frontend (port 3001)
 
 ```bash
-npm run dev     # Turbopack dev server
-npm start       # production (run `npm run build` first)
+pnpm --filter @shortly/web run dev     # Turbopack dev server
+pnpm --filter @shortly/web run build   # production build (Turbopack)
+pnpm --filter @shortly/web run start   # production serve (after build)
 ```
 
 ## Load balancer (Nginx, port 8080, via Docker)
@@ -117,34 +121,40 @@ stale servers serving old builds are the most common false alarm.
 ### Option A — Docker only (simplest)
 
 ```bash
-docker compose up -d   # repo root, spins up everything
+cd infrastructure && docker compose up -d   # spins up everything
 ```
 
 ### Option B — Local dev (hot-reload)
 
-1. `docker compose up -d postgres redis rabbitmq` (repo root)
-2. `npm run db:migrate` (repo root)
-3. Backend: `npm run dev` (repo root)
-4. Workers: `npm run worker:publisher` + `npm run worker:analytics`
-   (repo root, own foreground terminals)
-5. Frontend: `npm run dev` (in `frontend/`)
+1. `cd infrastructure && docker compose up -d postgres redis rabbitmq`
+2. `pnpm --filter @shortly/api run db:migrate` (repo root)
+3. Backend: `pnpm --filter @shortly/api run dev` (repo root)
+4. Workers: `pnpm --filter @shortly/api run worker:publisher` +
+   `pnpm --filter @shortly/api run worker:analytics` (own foreground terminals)
+5. Frontend: `pnpm --filter @shortly/web run dev` (repo root)
 
 ## Full test sweep
 
 ```bash
-npm test            # backend, 90 tests (repo root; needs PG+Redis+RabbitMQ)
-cd frontend && npm test   # frontend unit (in frontend/)
-npm run test:e2e    # frontend E2E, auto-starts both dev servers (in frontend/)
+pnpm --filter @shortly/api run test          # backend, 90 tests (needs PG+Redis+RabbitMQ)
+pnpm --filter @shortly/web run test          # frontend unit tests
+pnpm --filter @shortly/web run test:e2e      # frontend E2E, auto-starts both dev servers
 ```
 
 ## Quality gate (pre-merge)
 
 ```bash
-npm run build       # TypeScript compilation
-npm run typecheck   # tsc --noEmit
-npm run lint        # ESLint
-npx prettier --check .   # formatting
-npm test            # full backend suite (90/90)
+pnpm --filter @shortly/api run build        # TypeScript compilation
+pnpm --filter @shortly/api run typecheck    # tsc --noEmit
+pnpm --filter @shortly/api run lint         # ESLint
+pnpm --filter @shortly/api run test         # full backend suite (89/90 — outbox needs RabbitMQ)
+
+pnpm --filter @shortly/web run build        # Next.js production build
+pnpm --filter @shortly/web run typecheck    # tsc --noEmit
+pnpm --filter @shortly/web run lint         # ESLint
+pnpm --filter @shortly/web run test         # frontend tests
+
+pnpm --filter @shortly/shared run build     # shared package build
 ```
 
-All five must pass before merging. Fix branches follow the same gate.
+All must pass before merging. Fix branches follow the same gate.

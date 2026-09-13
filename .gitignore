@@ -6,3 +6,13 @@ coverage/
 *.log
 .DS_Store
 Thumbs.db
+
+# Next.js
+.next/
+out/
+*.tsbuildinfo
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/

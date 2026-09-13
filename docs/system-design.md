@@ -36,7 +36,52 @@ beyond deactivation (see §7).
 - **Understandability.** The binding constraint on every decision: simple,
   correct, measurable, then scalable (§6).
 
-## 3. Architecture
+## 3. Repository layout
+
+```text
+shortly/                        ← pnpm workspace root
+├── apps/
+│   ├── api/                    ← Express backend (port 3000)
+│   │   ├── src/                ← application source
+│   │   ├── tests/              ← unit / integration / e2e
+│   │   ├── migrations/         ← Drizzle SQL migrations
+│   │   └── Dockerfile
+│   └── web/                    ← Next.js frontend (port 3001)
+│       ├── src/                ← app router, features, components
+│       ├── e2e/                ← Playwright
+│       └── Dockerfile
+├── packages/
+│   └── shared/                 ← @shortly/shared (constants, types, validators)
+├── infrastructure/
+│   ├── docker-compose.yml      ← full stack
+│   └── nginx/nginx.conf        ← reverse proxy / LB
+├── docs/                       ← milestone docs, runbook, system design
+├── pnpm-workspace.yaml
+├── tsconfig.base.json          ← shared compiler options
+└── .npmrc                      ← node-linker=hoisted
+```
+
+### Why a monorepo?
+
+The frontend mirrors contracts it never owns (§5). Keeping API types and
+constants in `@shortly/shared` ensures both apps stay in sync without
+duplicating validation rules or type definitions. pnpm workspaces give us
+atomic installs, workspace-protocol linking (`workspace:*`), and a single
+lockfile.
+
+### Key npm scripts
+
+| Action | Command |
+| --- | --- |
+| Install all deps | `pnpm install` |
+| Build shared | `pnpm --filter @shortly/shared run build` |
+| Dev backend | `pnpm --filter @shortly/api run dev` |
+| Dev frontend | `pnpm --filter @shortly/web run dev` |
+| Run backend tests | `pnpm --filter @shortly/api run test` |
+| Build frontend | `pnpm --filter @shortly/web run build` |
+| Full Docker stack | `cd infrastructure && docker compose up -d` |
+
+## 4. Architecture
 
 ```text
 CLIENT
@@ -71,7 +116,7 @@ accelerates; RabbitMQ decouples; outbox makes async reliable; workers do
 background work; Nginx fans out; the API holds no state; the frontend
 mirrors contracts it never owns.
 
-## 4. Data model
+## 5. Data model
 
 - **`urls`** — one row per shortened link. `BIGSERIAL` id (internal,
   Base62-encoded for codes); `short_code` + `custom_alias` unique (the
@@ -86,7 +131,7 @@ mirrors contracts it never owns.
   index for dashboard reads. 90-day raw retention.
   `docs/milestone-11-analytics-worker.md`, `docs/milestone-12-analytics-storage.md`.
 
-## 5. Request flows
+## 6. Request flows
 
 ### Creation
 
@@ -116,7 +161,7 @@ Deactivation flips the flag and invalidates (410 thereafter, M7). List
 and stats reads ride the shared read rate budget, mounted before the
 write-limited router (registration order is the exemption mechanism).
 
-## 6. Cross-cutting principles (the project's thesis)
+## 7. Cross-cutting principles (the project's thesis)
 
 1. Constraints arbitrate, applications translate (uniqueness, races).
 2. Caches derive, never originate (fail-open everywhere).
@@ -128,18 +173,18 @@ write-limited router (registration order is the exemption mechanism).
    doubt, verify the running artifact, not the source tree (stale `dist`,
    squatter servers, and poisoned dev compiles each burned us once).
 
-## 7. What is not here (and why)
+## 8. What is not here (and why)
 
 Auth (no users, no threat model needing it), custom domains (DNS +
 cert complexity for zero learning value now), link editing (deactivate +
 recreate covers the lifecycle), ClickHouse/sharding/distributed IDs
 (documented futures in M22-stage thinking, unearned at this volume).
 
-## 8. Map to milestone docs
+## 9. Map to milestone docs
 
 M00 foundation · M01 PostgreSQL · M02 creation · M03 Base62 · M04 redirect ·
 M05 Redis · M06 aliases · M07 lifecycle · M08 rate limiting · M09 events ·
 M10 outbox · M11 worker · M12 storage · M13 analytics API · M14
 observability · M15 failure handling · M16 Docker · M17 load balancer ·
 M18 testing · M19 OpenAPI · reads/stats supplements · frontend F0–F9 in
-`frontend/AGENTS.md` + capability map (§30).
+`apps/web/AGENTS.md` + capability map (§30).

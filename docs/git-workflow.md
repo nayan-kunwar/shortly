@@ -60,12 +60,14 @@ Verify: npm run typecheck, build, test green.
 
 Before merging a milestone branch:
 
-1. `npm run typecheck` green
-2. `npm run build` green
-3. `npm test` green
-4. `npm run lint` + `npm run format:check` green
-5. Live verification done (documented in `docs/milestone-NN-*.md`)
-6. `git status` clean, no secrets (`.env` never committed)
+1. `pnpm --filter @shortly/api run typecheck` green
+2. `pnpm --filter @shortly/api run build` green
+3. `pnpm --filter @shortly/api run test` green
+4. `pnpm --filter @shortly/api run lint` + `pnpm --filter @shortly/web run lint` green
+5. `pnpm --filter @shortly/web run build` green
+6. `pnpm --filter @shortly/web run typecheck` green
+7. Live verification done (documented in `docs/milestone-NN-*.md`)
+8. `git status` clean, no secrets (`.env` never committed)
 
 Merge only when all six pass.
 
