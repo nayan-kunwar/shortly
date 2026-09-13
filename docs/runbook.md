@@ -21,6 +21,20 @@ docker compose down                            # stop + remove containers (volum
 If the suite fails with `ECONNREFUSED` or Docker pipe errors, Docker Desktop
 itself is down — start it first, then `docker compose up -d`.
 
+## Full Docker stack (repo root)
+
+```bash
+docker compose up -d                           # everything: infra + API replicas + workers + Nginx
+docker compose ps                              # all services
+docker compose logs -f api                     # follow API logs
+docker compose restart api                     # restart one service
+docker compose down                            # tear down
+```
+
+Services: `postgres`, `redis`, `rabbitmq`, `api` (:3000), `api-2` (:3001),
+`worker:publisher`, `worker:analytics`, `nginx` (:8080 → round-robin
+across both API replicas).
+
 ## Backend API (repo root, port 3000)
 
 ```bash
@@ -29,6 +43,37 @@ node dist/server.js  # production (run `npm run build` first)
 ```
 
 Health: `curl http://localhost:3000/health`
+
+### Readiness (M14)
+
+```bash
+curl http://localhost:3000/ready
+```
+
+Returns 200 when PostgreSQL, Redis, and RabbitMQ are reachable; 503 if any
+dependency is down. Use this, not health, for traffic decisions.
+
+### Metrics (M14)
+
+```bash
+curl http://localhost:3000/metrics
+```
+
+Prometheus-format counters and histograms: `http_requests_total`,
+`redirect_cache_hits`, `redirect_cache_misses`, `url_creation_total`,
+`analytics_events_created`, `analytics_events_published`,
+`analytics_events_processed`, `rate_limit_exceeded`.
+
+### OpenAPI docs (M19, dev only)
+
+```bash
+curl http://localhost:3000/docs.json   # raw OpenAPI 3.0 JSON
+# browser: http://localhost:3000/docs  # Swagger UI explorer
+```
+
+Generated from live Zod validators — never hand-edit the spec; change the
+validator and the spec follows. Route is mounted only outside production
+to avoid `/docs*` collisions with short codes.
 
 ## Workers (repo root, one foreground terminal each)
 
@@ -50,11 +95,16 @@ npm run dev     # Turbopack dev server
 npm start       # production (run `npm run build` first)
 ```
 
+## Load balancer (Nginx, port 8080, via Docker)
+
+Rounds across both API replicas (`api` + `api-2`). Use `:8080` instead of
+`:3000` to verify load-balanced behaviour (health probes, sessionlessness).
+
 ## Kill switches (squatted ports)
 
 ```powershell
-# PowerShell: kill listeners on 3000/3001
-Get-NetTCPConnection -LocalPort 3000,3001 -State Listen |
+# PowerShell: kill listeners on 3000, 3001, 8080
+Get-NetTCPConnection -LocalPort 3000,3001,8080 -State Listen |
   Select-Object -ExpandProperty OwningProcess -Unique |
   ForEach-Object { Stop-Process -Id $_ -Force }
 ```
@@ -63,6 +113,14 @@ Always verify a port is actually free before blaming code for odd responses —
 stale servers serving old builds are the most common false alarm.
 
 ## Full boot order (when everything is wanted)
+
+### Option A — Docker only (simplest)
+
+```bash
+docker compose up -d   # repo root, spins up everything
+```
+
+### Option B — Local dev (hot-reload)
 
 1. `docker compose up -d postgres redis rabbitmq` (repo root)
 2. `npm run db:migrate` (repo root)
@@ -74,7 +132,19 @@ stale servers serving old builds are the most common false alarm.
 ## Full test sweep
 
 ```bash
-npm test            # backend, 78 tests (repo root; needs PG+Redis+RabbitMQ)
-npm test            # frontend unit, 38 tests (in frontend/)
+npm test            # backend, 90 tests (repo root; needs PG+Redis+RabbitMQ)
+cd frontend && npm test   # frontend unit (in frontend/)
 npm run test:e2e    # frontend E2E, auto-starts both dev servers (in frontend/)
 ```
+
+## Quality gate (pre-merge)
+
+```bash
+npm run build       # TypeScript compilation
+npm run typecheck   # tsc --noEmit
+npm run lint        # ESLint
+npx prettier --check .   # formatting
+npm test            # full backend suite (90/90)
+```
+
+All five must pass before merging. Fix branches follow the same gate.
