@@ -58,19 +58,14 @@ export function createApp(deps: AppDeps = {}): Application {
 
   // CORS for local frontend development only. Disabled in production, where
   // the frontend is same-origin (or the gateway owns CORS policy).
-  // Function form: matching origins get an ACAO echo, everyone else gets
-  // no CORS headers at all (a fixed string would echo on every response).
+  // String origin is explicit and handles preflight automatically; function
+  // callbacks add edge-case surface without benefit for a single-frontend setup.
   if (env.NODE_ENV !== 'production') {
     app.use(
       cors({
-        origin: (origin, callback) => {
-          // Same-origin / non-browser requests carry no Origin — allow through.
-          if (origin === undefined || origin === env.CORS_ORIGIN) {
-            callback(null, true);
-          } else {
-            callback(null, false);
-          }
-        },
+        origin: env.CORS_ORIGIN,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
       }),
     );
   }
