@@ -52,11 +52,20 @@ Verify: `curl http://localhost:3000/health`
 
 ### Step 6: Start frontend (port 3001)
 
+Create the frontend env file (points to the API):
+```bash
+echo "NEXT_PUBLIC_API_URL=http://localhost:3000" > apps/web/.env.local
+```
+
+Then start:
 ```bash
 pnpm --filter @shortly/web run dev
 ```
 
 Open: `http://localhost:3001`
+
+> **Note:** `.env.example` defaults to `:8080` (Nginx/Docker). For local dev
+> without Nginx, `.env.local` must point to `:3000` (direct API).
 
 ### Step 7 (optional): Start workers
 
