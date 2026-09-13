@@ -161,6 +161,42 @@ pnpm --filter @shortly/web run build
 
 ---
 
+## Troubleshooting
+
+### Port already in use (EADDRINUSE)
+
+Orphaned `node` processes survive terminal closes. Kill them:
+
+```powershell
+# PowerShell: find what's using a port
+Get-NetTCPConnection -LocalPort 3000,3001 -State Listen |
+  Select-Object -ExpandProperty OwningProcess -Unique
+
+# Kill specific PID
+taskkill /F /PID <pid>
+
+# Nuclear: kill ALL node processes
+taskkill /F /IM node.exe
+```
+
+### Docker containers from previous runs
+
+```bash
+# See all containers
+docker ps -a
+
+# Remove all
+docker rm -f $(docker ps -aq)
+```
+
+### Stale Docker volumes
+
+```bash
+cd infrastructure && docker compose down -v   # removes volumes too
+```
+
+---
+
 ## Tear Down
 
 ```bash
