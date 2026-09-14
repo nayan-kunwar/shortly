@@ -71,14 +71,14 @@ lockfile.
 
 ### Key npm scripts
 
-| Action | Command |
-| --- | --- |
-| Install all deps | `pnpm install` |
-| Build shared | `pnpm --filter @shortly/shared run build` |
-| Dev backend | `pnpm --filter @shortly/api run dev` |
-| Dev frontend | `pnpm --filter @shortly/web run dev` |
-| Run backend tests | `pnpm --filter @shortly/api run test` |
-| Build frontend | `pnpm --filter @shortly/web run build` |
+| Action            | Command                                     |
+| ----------------- | ------------------------------------------- |
+| Install all deps  | `pnpm install`                              |
+| Build shared      | `pnpm --filter @shortly/shared run build`   |
+| Dev backend       | `pnpm --filter @shortly/api run dev`        |
+| Dev frontend      | `pnpm --filter @shortly/web run dev`        |
+| Run backend tests | `pnpm --filter @shortly/api run test`       |
+| Build frontend    | `pnpm --filter @shortly/web run build`      |
 | Full Docker stack | `cd infrastructure && docker compose up -d` |
 
 ## 4. Architecture
@@ -186,5 +186,5 @@ M00 foundation · M01 PostgreSQL · M02 creation · M03 Base62 · M04 redirect �
 M05 Redis · M06 aliases · M07 lifecycle · M08 rate limiting · M09 events ·
 M10 outbox · M11 worker · M12 storage · M13 analytics API · M14
 observability · M15 failure handling · M16 Docker · M17 load balancer ·
-M18 testing · M19 OpenAPI · reads/stats supplements · frontend F0–F9 in
+M18 testing · M19 OpenAPI · M21 capacity planning · reads/stats supplements · frontend F0–F9 in
 `apps/web/AGENTS.md` + capability map (§30).
