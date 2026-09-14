@@ -10,7 +10,7 @@ import { NotFoundError } from '../errors/not-found-error.js';
 import { log } from '../observability/logger.js';
 import type { UrlRepository } from '../repositories/url.repository.js';
 import type { UpdateUrlPatch, UrlRecord } from '../types/url.js';
-import { encodeBase62 } from '../utils/base62.js';
+import { generateRandomCode } from '../utils/base62.js';
 import type { CreateUrlRequest, ListUrlsQuery } from '../validators/url.validator.js';
 
 export interface CreatedUrl {
@@ -54,8 +54,7 @@ export class UrlService {
   /**
    * Create a shortened URL.
    * - Custom alias: single attempt; a 23505 becomes ConflictError → 409.
-   * - Generated code: sequence id → Base62 in one transaction. No retry
-   *   loop — determinism replaced probability (M3 deleted the M2 loop).
+   * - Generated code: random 7-char Base62 with retry on UNIQUE violation.
    */
   async createShortUrl(input: CreateUrlRequest): Promise<CreatedUrl> {
     const customAlias = input.customAlias ?? null;
@@ -81,12 +80,30 @@ export class UrlService {
       }
     }
 
-    const created = await this.repo.createWithGeneratedCode(
-      { originalUrl: input.url, customAlias: null, expiresAt },
-      encodeBase62,
+    const SHORT_CODE_LENGTH = 7;
+    const MAX_RETRIES = 5;
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      const code = generateRandomCode(SHORT_CODE_LENGTH);
+      try {
+        const created = await this.repo.create({
+          shortCode: code,
+          originalUrl: input.url,
+          customAlias: null,
+          expiresAt,
+        });
+        await this.cache.invalidate(created.shortCode);
+        return this.toResponse(created.shortCode, created.originalUrl);
+      } catch (err) {
+        if (err instanceof ConflictError && err.field === 'shortCode') {
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw new Error(
+      `Failed to generate a unique short code after ${String(MAX_RETRIES)} attempts`,
     );
-    await this.cache.invalidate(created.shortCode);
-    return this.toResponse(created.shortCode, created.originalUrl);
   }
 
   /** Service owns every mutation so invalidation cannot be forgotten by callers. */

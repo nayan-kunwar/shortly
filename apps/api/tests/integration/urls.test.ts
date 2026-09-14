@@ -32,13 +32,13 @@ describe('POST /api/v1/urls', () => {
 
     expect(res.status).toBe(201);
     expect(typeof res.body.shortCode).toBe('string');
-    // Sequence-id → Base62: short, alphanumeric, deterministic per id.
-    expect(String(res.body.shortCode)).toMatch(/^[0-9A-Za-z]{1,11}$/);
+    // Random 7-char Base62: unpredictable, uniform distribution.
+    expect(String(res.body.shortCode)).toMatch(/^[0-9A-Za-z]{7}$/);
     expect(res.body.shortUrl).toBe(`http://localhost:3000/${String(res.body.shortCode)}`);
     expect(res.body.originalUrl).toBe('https://example.com/very/long/url');
   });
 
-  it('issues a distinct code per URL (deterministic, no collisions possible)', async () => {
+  it('issues a distinct code per URL', async () => {
     const app = createApp();
     const first = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/1' });
     const second = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/2' });
@@ -133,6 +133,30 @@ describe('POST /api/v1/urls', () => {
     );
     expect(results.filter((r) => r.status === 201)).toHaveLength(1);
     expect(results.filter((r) => r.status === 409)).toHaveLength(9);
+  });
+
+  it('generates unique 7-character codes for multiple URLs', async () => {
+    const app = createApp();
+    const codes = new Set<string>();
+    for (let i = 0; i < 20; i++) {
+      const res = await request(app)
+        .post('/api/v1/urls')
+        .send({ url: `https://example.com/unique-test/${String(i)}` });
+      expect(res.status).toBe(201);
+      expect(String(res.body.shortCode)).toMatch(/^[0-9A-Za-z]{7}$/);
+      codes.add(String(res.body.shortCode));
+    }
+    expect(codes.size).toBe(20);
+  });
+
+  it('resolves a pre-existing numeric short code via direct DB insert', async () => {
+    const app = createApp();
+    await pool.query(
+      `INSERT INTO urls (short_code, original_url) VALUES ('6', 'https://example.com/legacy')`,
+    );
+    const res = await request(app).get('/6').redirects(0);
+    expect(res.status).toBe(302);
+    expect(res.headers['location']).toBe('https://example.com/legacy');
   });
 });
 

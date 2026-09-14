@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 /** Base62 alphabet: 0-9, a-z, A-Z. Order matters — it defines the encoding. */
 export const BASE62_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -30,6 +32,32 @@ export function encodeBase62(value: number): string {
  * Number.MAX_SAFE_INTEGER (codes for larger ids need BigInt — a documented
  * future step, not today's need).
  */
+/**
+ * Generate a cryptographically secure random Base62 string of the given length.
+ * Uses rejection sampling to avoid modulo bias: bytes >= threshold (the
+ * largest multiple of 62 fitting in a byte) are discarded.
+ */
+export function generateRandomCode(length: number): string {
+  if (!Number.isSafeInteger(length) || length <= 0) {
+    throw new RangeError(
+      `generateRandomCode expects a positive integer length, got ${String(length)}`,
+    );
+  }
+  // 256 % 62 = 8, so bytes 248–255 would introduce bias. Discard them.
+  const threshold = 256 - (256 % BASE);
+  let out = '';
+  while (out.length < length) {
+    const bytes = randomBytes(length * 2);
+    for (let i = 0; i < bytes.length && out.length < length; i++) {
+      const b = bytes[i] as number;
+      if (b < threshold) {
+        out += BASE62_ALPHABET[b % BASE];
+      }
+    }
+  }
+  return out;
+}
+
 export function decodeBase62(code: string): number {
   if (code.length === 0) {
     throw new Error('decodeBase62 expects a non-empty string');

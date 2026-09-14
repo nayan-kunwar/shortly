@@ -115,6 +115,10 @@ export class UrlRepository {
    * transaction. The placeholder satisfies NOT NULL and is invisible outside
    * the transaction (uncommitted rows are never readable), so there is no
    * window where a half-made row exists. Deterministic: no retry loop.
+   *
+   * @deprecated Use repo.create() with a randomly generated short code from
+   * generateRandomCode() instead. This method is retained for backward
+   * compatibility and potential future use with distributed ID generators.
    */
   async createWithGeneratedCode(
     input: Omit<CreateUrlInput, 'shortCode'>,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decodeBase62, encodeBase62 } from '../../src/utils/base62.js';
+import { decodeBase62, encodeBase62, generateRandomCode } from '../../src/utils/base62.js';
 
 describe('base62', () => {
   it('encodes zero as "0"', () => {
@@ -47,5 +47,33 @@ describe('base62', () => {
     expect(() => decodeBase62('+/==')).toThrow();
     // 62^11 exceeds MAX_SAFE_INTEGER → must throw, not silently lose precision.
     expect(() => decodeBase62('ZZZZZZZZZZZ')).toThrow(RangeError);
+  });
+});
+
+describe('generateRandomCode', () => {
+  it('returns exactly the requested length', () => {
+    for (const len of [1, 4, 7, 12, 20]) {
+      expect(generateRandomCode(len)).toHaveLength(len);
+    }
+  });
+
+  it('only contains Base62 characters [0-9a-zA-Z]', () => {
+    const code = generateRandomCode(200);
+    expect(code).toMatch(/^[0-9A-Za-z]+$/);
+    expect(code).toHaveLength(200);
+  });
+
+  it('produces different codes across calls', () => {
+    const codes = new Set(Array.from({ length: 50 }, () => generateRandomCode(7)));
+    expect(codes.size).toBeGreaterThan(1);
+  });
+
+  it('throws RangeError for length <= 0', () => {
+    expect(() => generateRandomCode(0)).toThrow(RangeError);
+    expect(() => generateRandomCode(-1)).toThrow(RangeError);
+  });
+
+  it('throws RangeError for non-integer length', () => {
+    expect(() => generateRandomCode(1.5)).toThrow(RangeError);
   });
 });
