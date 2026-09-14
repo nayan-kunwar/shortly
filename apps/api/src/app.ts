@@ -58,26 +58,22 @@ export function createApp(deps: AppDeps = {}): Application {
   app.use(requestLoggingMiddleware);
   app.use(express.json({ limit: '100kb' }));
 
-  // CORS for local frontend development only. Disabled in production, where
-  // the frontend is same-origin (or the gateway owns CORS policy).
-  // Function form: matching origins get an ACAO echo, everyone else gets
-  // no CORS headers at all (a fixed string would echo on every response).
-  if (env.NODE_ENV !== 'production') {
-    app.use(
-      cors({
-        origin: (origin, callback) => {
-          // Same-origin / non-browser requests carry no Origin — allow through.
-          if (origin === undefined || origin === env.CORS_ORIGIN) {
-            callback(null, true);
-          } else {
-            callback(null, false);
-          }
-        },
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization'],
-      }),
-    );
-  }
+  // CORS: function form ensures only the configured origin gets an ACAO
+  // header. Same-origin / non-browser requests (no Origin) pass through.
+  // In production, CORS_ORIGIN must be set to the Vercel frontend URL.
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        if (origin === undefined || origin === env.CORS_ORIGIN) {
+          callback(null, true);
+        } else {
+          callback(null, false);
+        }
+      },
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    }),
+  );
 
   app.use('/health', healthRouter);
   // /ready and /metrics join the must-register-before-redirect set:

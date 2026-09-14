@@ -15,7 +15,6 @@ import { log } from '../observability/logger.js';
 import {
   assertTopology,
   CLICKS_QUEUE,
-  CLICKS_DLQ,
   connectRabbitMQ,
 } from '../rabbitmq/connection.js';
 import { env } from '../config/env.js';
