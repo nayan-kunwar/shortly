@@ -1,6 +1,6 @@
 'use client';
 
-import { LayoutDashboard, Link2, ListOrdered, Settings } from 'lucide-react';
+import { LayoutDashboard, Link2, ListOrdered } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -15,7 +15,6 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/create', label: 'Create', icon: Link2 },
   { href: '/urls', label: 'My URLs', icon: ListOrdered },
-  { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 /** Client island: only the active-link highlight needs interactivity. */
