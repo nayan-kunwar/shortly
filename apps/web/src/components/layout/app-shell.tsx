@@ -2,10 +2,12 @@
 
 import { usePathname } from 'next/navigation';
 import { Navbar, Sidebar } from './navbar';
+import { LandingNavbar } from './landing-navbar';
 
 /**
  * Client shell that conditionally renders the sidebar. The landing page
- * (/) gets a clean full-width layout; all other routes keep the sidebar.
+ * (/) gets a clean full-width layout with its own navbar; all other
+ * routes keep the sidebar layout.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -14,8 +16,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (isHome) {
     return (
       <>
-        <Navbar />
-        <main className="mx-auto w-full max-w-4xl px-4 py-8">{children}</main>
+        <LandingNavbar />
+        <main>{children}</main>
       </>
     );
   }

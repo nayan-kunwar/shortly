@@ -1,15 +1,84 @@
 @import 'tailwindcss';
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 /* Class-based dark mode for next-themes (attribute="class"). */
 @custom-variant dark (&:where(.dark, .dark *));
 
 body {
-  @apply bg-white text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100;
+  @apply antialiased;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  @apply bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100;
 }
 
-/* Visible keyboard focus everywhere, in one place: custom buttons and links
- * carry no focus ring of their own, and per-component classes would rot. */
+/* Visible keyboard focus everywhere. */
 :focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 2px;
+}
+
+/* Subtle fade-in animation for landing page sections. */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out both;
+}
+
+.animation-delay-100 {
+  animation-delay: 100ms;
+}
+
+.animation-delay-200 {
+  animation-delay: 200ms;
+}
+
+.animation-delay-300 {
+  animation-delay: 300ms;
+}
+
+.animation-delay-400 {
+  animation-delay: 400ms;
+}
+
+/* Gradient text utility. */
+.gradient-text {
+  background: linear-gradient(135deg, #111827 0%, #6b7280 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+:root.dark .gradient-text {
+  background: linear-gradient(135deg, #f9fafb 0%, #9ca3af 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Subtle glow effect for the hero form card. */
+.glow-border {
+  position: relative;
+}
+
+.glow-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(168,85,247,0.15), rgba(99,102,241,0.05));
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.glow-border:hover::before {
+  opacity: 1;
 }
