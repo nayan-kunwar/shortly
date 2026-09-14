@@ -451,7 +451,7 @@ export default function HomePage() {
             {/* Brand */}
             <div>
               <Link href="/" className="flex items-center">
-                <Logo size={22} />
+                <Logo size={36} />
               </Link>
               <p className="mt-3 max-w-xs text-sm text-gray-500 dark:text-gray-400">
                 Simple links. Powerful insights.

@@ -2,28 +2,25 @@ import Image from 'next/image';
 import type { HTMLAttributes } from 'react';
 
 interface LogoProps extends HTMLAttributes<HTMLSpanElement> {
-  /** Show only the icon mark (no text). */
-  iconOnly?: boolean;
-  /** Height in pixels. Width auto-scales. Default 28. */
+  /** Icon height in pixels. Width auto-scales. Default 32. */
   size?: number;
 }
 
-/** Logo component using /logo.png from public/. */
-export function Logo({ iconOnly = false, size = 28, className, ...props }: LogoProps) {
-  const h = size;
-  const w = iconOnly ? size : size * 3;
-
+/** Brand mark: favicon.png icon + "Shortly" text. */
+export function Logo({ size = 36, className, ...props }: LogoProps) {
   return (
-    <span className={className} {...props}>
+    <span className={`inline-flex items-center gap-2 ${className ?? ''}`} {...props}>
       <Image
-        src="/logo.png"
-        alt="Shortly"
-        width={w}
-        height={h}
-        className="h-[length:var(--logo-h)] w-auto"
-        style={{ '--logo-h': `${h}px` } as React.CSSProperties}
+        src="/favicon.png"
+        alt=""
+        width={size}
+        height={size}
+        className="rounded-sm"
         priority
       />
+      <span className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
+        Shortly
+      </span>
     </span>
   );
 }

@@ -21,7 +21,7 @@ export function LandingNavbar() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         {/* Brand */}
         <Link href="/" className="flex items-center">
-          <Logo size={22} />
+          <Logo size={36} />
         </Link>
 
         {/* Desktop nav */}

@@ -9,7 +9,7 @@ export function Navbar() {
     <header className="border-b border-gray-200 dark:border-gray-800">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         <Link href="/" className="flex items-center">
-          <Logo size={20} />
+          <Logo size={36} />
         </Link>
         <ThemeToggle />
       </div>
