@@ -186,5 +186,5 @@ M00 foundation · M01 PostgreSQL · M02 creation · M03 Base62 · M04 redirect �
 M05 Redis · M06 aliases · M07 lifecycle · M08 rate limiting · M09 events ·
 M10 outbox · M11 worker · M12 storage · M13 analytics API · M14
 observability · M15 failure handling · M16 Docker · M17 load balancer ·
-M18 testing · M19 OpenAPI · M21 capacity planning · reads/stats supplements · frontend F0–F9 in
+M18 testing · M19 OpenAPI · M21 capacity planning · M22 scaling strategy · reads/stats supplements · frontend F0–F9 in
 `apps/web/AGENTS.md` + capability map (§30).
