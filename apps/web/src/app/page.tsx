@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { CreateUrlForm } from '../features/urls/components/create-url-form';
 import { useStats } from '../features/stats/hooks/use-stats';
+import { Logo } from '../components/ui/logo';
 
 /* ------------------------------------------------------------------ */
 /*  Feature cards                                                      */
@@ -449,8 +450,8 @@ export default function HomePage() {
           <div className="grid gap-8 sm:grid-cols-3">
             {/* Brand */}
             <div>
-              <Link href="/" className="text-lg font-bold tracking-tight">
-                Shortly
+              <Link href="/" className="flex items-center">
+                <Logo size={22} />
               </Link>
               <p className="mt-3 max-w-xs text-sm text-gray-500 dark:text-gray-400">
                 Simple links. Powerful insights.

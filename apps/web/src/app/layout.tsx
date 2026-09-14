@@ -8,6 +8,9 @@ import { AppShell } from '../components/layout/app-shell';
 export const metadata: Metadata = {
   title: 'Shortly — URL Shortener',
   description: 'Create short URLs and explore click analytics.',
+  icons: {
+    icon: '/favicon.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

@@ -1,14 +1,15 @@
 import Link from 'next/link';
 import { NavLinks } from './nav-links';
 import { ThemeToggle } from './theme-toggle';
+import { Logo } from '../../components/ui/logo';
 
 /** Desktop top bar: brand, theme toggle. No JS except the toggle island. */
 export function Navbar() {
   return (
     <header className="border-b border-gray-200 dark:border-gray-800">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="text-lg font-bold tracking-tight">
-          Shortly
+        <Link href="/" className="flex items-center">
+          <Logo size={20} />
         </Link>
         <ThemeToggle />
       </div>

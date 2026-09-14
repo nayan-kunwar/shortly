@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
+import { Logo } from '../../components/ui/logo';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard' },
@@ -19,8 +20,8 @@ export function LandingNavbar() {
     <header className="sticky top-0 z-50 border-b border-gray-200/60 bg-white/80 backdrop-blur-lg dark:border-gray-800/60 dark:bg-gray-950/80">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         {/* Brand */}
-        <Link href="/" className="text-lg font-bold tracking-tight">
-          Shortly
+        <Link href="/" className="flex items-center">
+          <Logo size={22} />
         </Link>
 
         {/* Desktop nav */}
