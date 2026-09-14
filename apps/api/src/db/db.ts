@@ -1,5 +1,6 @@
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
+import { log } from '../observability/logger.js';
 import { env } from '../config/env.js';
 import { schema } from './schema.js';
 
@@ -20,7 +21,7 @@ export const pool: Pool = new Pool({
 
 pool.on('error', (err) => {
   // Idle-client errors would otherwise crash the process silently.
-  console.error('Unexpected pg pool error', err);
+  log('error', 'Unexpected pg pool error', { error: err.message });
 });
 
 /** Typed query client. Drizzle over node-postgres — SQL-shaped, no engine. */

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, asc, eq, isNull, lte, or } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, lte, or } from 'drizzle-orm';
 import type { ClickEvent } from '../analytics/click-event.js';
 import type { Db } from '../db/db.js';
 import { outboxEvents } from '../db/schema.js';
@@ -96,6 +96,15 @@ export class OutboxRepository {
       .update(outboxEvents)
       .set({ publishedAt: new Date() })
       .where(eq(outboxEvents.id, id));
+  }
+
+  /** Batch-mark multiple rows published in one UPDATE. */
+  async markPublishedBatch(ids: number[]): Promise<void> {
+    if (ids.length === 0) return;
+    await this.db
+      .update(outboxEvents)
+      .set({ publishedAt: new Date() })
+      .where(inArray(outboxEvents.id, ids));
   }
 
   /** Delete published rows older than `olderThanDays`. Returns deleted count. */

@@ -1,5 +1,6 @@
 import cors from 'cors';
 import express, { type Application, type NextFunction, type Request, type Response } from 'express';
+import helmet from 'helmet';
 import { ZodError } from 'zod';
 import { createUrlsController } from './controllers/urls.controller.js';
 import { UrlCache } from './cache/url-cache.js';
@@ -44,6 +45,7 @@ export function createApp(deps: AppDeps = {}): Application {
   const app = express();
 
   app.disable('x-powered-by');
+  app.use(helmet());
   // Exactly one trusted proxy hop (Nginx, M17). Trusts X-Forwarded-For for
   // req.ip (rate limiting sees real clients, not the LB) while direct
   // connections (healthchecks, local dev) are unaffected — no XFF, no parse.
@@ -186,15 +188,7 @@ export function createApp(deps: AppDeps = {}): Application {
       res.status(503).json({ error: 'ServiceUnavailable', message });
       return;
     }
-    const message = err instanceof Error ? err.message : 'Internal Server Error';
-    const status =
-      typeof err === 'object' &&
-      err !== null &&
-      'status' in err &&
-      typeof (err as { status: unknown }).status === 'number'
-        ? ((err as { status: number }).status as number)
-        : 500;
-    res.status(status).json({ error: 'InternalServerError', message });
+    res.status(500).json({ error: 'InternalServerError', message: 'Internal Server Error' });
   });
 
   return app;

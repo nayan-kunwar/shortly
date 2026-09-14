@@ -1,4 +1,5 @@
 import type { ClickEmitter, ClickEvent } from '../analytics/click-event.js';
+import { log } from '../observability/logger.js';
 import type { OutboxRepository } from './outbox-repository.js';
 
 /**
@@ -15,7 +16,7 @@ export class OutboxClickEmitter implements ClickEmitter {
 
   emit(event: ClickEvent): void {
     void this.outbox.append('url.clicked', event).catch((err: unknown) => {
-      console.error(`Outbox append failed (event lost): ${(err as Error).message}`);
+      log('error', 'Outbox append failed (event lost)', { error: (err as Error).message });
     });
   }
 }

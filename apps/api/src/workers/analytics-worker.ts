@@ -1,29 +1,65 @@
 import { randomUUID } from 'node:crypto';
-import type { Channel, ConsumeMessage } from 'amqplib';
+import http from 'node:http';
+import type { ConsumeMessage } from 'amqplib';
 import {
   recordAnalyticsEventDuplicated,
   recordAnalyticsEventFailed,
   recordAnalyticsEventProcessed,
 } from '../analytics/analytics-metrics.js';
-import { clickEventSchema } from '../analytics/click-event.js';
+import { analyticsMetrics } from '../analytics/analytics-metrics.js';
+import { clickEventSchema, type ClickEvent } from '../analytics/click-event.js';
 import { ClickEventRepository } from '../analytics/click-event-repository.js';
 import type { Db } from '../db/db.js';
 import { closeDb, db } from '../db/db.js';
-import { assertTopology, CLICKS_QUEUE, connectRabbitMQ } from '../rabbitmq/connection.js';
+import { log } from '../observability/logger.js';
+import {
+  assertTopology,
+  CLICKS_QUEUE,
+  CLICKS_DLQ,
+  connectRabbitMQ,
+} from '../rabbitmq/connection.js';
 import { env } from '../config/env.js';
 
 const PREFETCH = 50;
+const BATCH_SIZE = 50;
+const BATCH_TIMEOUT_MS = 100;
+const METRICS_PORT = 9091;
+
+interface PendingMessage {
+  msg: ConsumeMessage;
+  parsed: ClickEvent;
+  eventId: string;
+}
 
 export interface WorkerHandle {
   stop(): Promise<void>;
 }
 
+function renderWorkerMetrics(): string {
+  const lines = [
+    '# HELP analytics_events_processed Click events persisted by the worker.',
+    '# TYPE analytics_events_processed counter',
+    `analytics_events_processed ${String(analyticsMetrics.eventsProcessed)}`,
+    '# HELP analytics_events_duplicated Duplicate deliveries absorbed.',
+    '# TYPE analytics_events_duplicated counter',
+    `analytics_events_duplicated ${String(analyticsMetrics.eventsDuplicated)}`,
+    '# HELP analytics_events_failed Click events dead-lettered.',
+    '# TYPE analytics_events_failed counter',
+    `analytics_events_failed ${String(analyticsMetrics.eventsFailed)}`,
+  ];
+  return lines.join('\n') + '\n';
+}
+
 /**
- * Analytics consumer: validate → persist (idempotent) → ack.
+ * Analytics consumer: validate → micro-batch → persist (idempotent) → ack.
  * - Unparseable/invalid payload → reject without requeue → DLQ (poison).
  * - DB/auth errors on first delivery → nack with requeue (transient);
  *   on redelivery → reject to DLQ (bounded poison handling).
  * - Crash before ack → broker redelivers; event_id dedupe keeps it exact.
+ *
+ * Uses micro-batching: accumulates up to BATCH_SIZE messages or
+ * BATCH_TIMEOUT_MS, then issues a single multi-row INSERT. Reduces DB
+ * round-trips by 10-50x compared to one INSERT per message.
  */
 export async function startAnalyticsWorker(
   db: Db,
@@ -35,70 +71,121 @@ export async function startAnalyticsWorker(
   await assertTopology(channel);
   await channel.prefetch(PREFETCH);
 
-  await channel.consume(CLICKS_QUEUE, (msg) => {
-    void handleMessage(channel, repo, msg).catch((err: unknown) => {
-      console.error(`Worker handler crashed (message requeued): ${(err as Error).message}`);
+  // DLQ consumer: log dead-lettered messages for visibility.
+  await channel.consume(CLICKS_DLQ, (msg) => {
+    if (msg === null) return;
+    const body = msg.content.toString();
+    log('warn', 'Dead-lettered message', {
+      queue: CLICKS_DLQ,
+      messageId: msg.properties.messageId,
+      body: body.slice(0, 500),
+      redelivered: msg.fields.redelivered,
     });
+    channel.ack(msg);
   });
 
-  return {
-    stop: async () => {
-      await channel.close();
-      await connection.close();
-    },
+  const batch: PendingMessage[] = [];
+  let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const flushBatch = async (): Promise<void> => {
+    if (flushTimer !== null) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
+    if (batch.length === 0) return;
+
+    const toFlush = batch.splice(0, batch.length);
+    try {
+      const result = await repo.recordClickBatch(
+        toFlush.map((m) => ({
+          event: m.parsed,
+          eventId: m.eventId,
+        })),
+      );
+      for (const _ of Array(result.inserted)) {
+        recordAnalyticsEventProcessed();
+      }
+      for (const _ of Array(result.duplicated)) {
+        recordAnalyticsEventDuplicated();
+      }
+      for (const m of toFlush) {
+        channel.ack(m.msg);
+      }
+    } catch {
+      for (const m of toFlush) {
+        if (m.msg.fields.redelivered) {
+          channel.reject(m.msg, false);
+          recordAnalyticsEventFailed();
+        } else {
+          channel.nack(m.msg, false, true);
+        }
+      }
+    }
   };
-}
 
-async function handleMessage(
-  channel: Channel,
-  repo: ClickEventRepository,
-  msg: ConsumeMessage | null,
-): Promise<void> {
-  if (msg === null) return;
+  await channel.consume(CLICKS_QUEUE, (msg) => {
+    if (msg === null) return;
 
-  let body: unknown;
-  try {
-    body = JSON.parse(msg.content.toString());
-  } catch {
-    channel.reject(msg, false);
-    recordAnalyticsEventFailed();
-    return;
-  }
+    let body: unknown;
+    try {
+      body = JSON.parse(msg.content.toString());
+    } catch {
+      channel.reject(msg, false);
+      recordAnalyticsEventFailed();
+      return;
+    }
 
-  const parsed = clickEventSchema.safeParse(body);
-  if (!parsed.success) {
-    channel.reject(msg, false);
-    recordAnalyticsEventFailed();
-    return;
-  }
+    const parsed = clickEventSchema.safeParse(body);
+    if (!parsed.success) {
+      channel.reject(msg, false);
+      recordAnalyticsEventFailed();
+      return;
+    }
 
-  const eventId =
-    typeof msg.properties.messageId === 'string' ? msg.properties.messageId : randomUUID();
-  try {
-    // Zod nullish() yields undefined; storage uses null. Normalize at the edge.
-    const result = await repo.recordClick(
-      {
+    const eventId =
+      typeof msg.properties.messageId === 'string' ? msg.properties.messageId : randomUUID();
+
+    batch.push({
+      msg,
+      parsed: {
         ...parsed.data,
         ip: parsed.data.ip ?? null,
         userAgent: parsed.data.userAgent ?? null,
         referer: parsed.data.referer ?? null,
       },
       eventId,
-    );
-    if (result === 'duplicate') {
-      recordAnalyticsEventDuplicated();
-    } else {
-      recordAnalyticsEventProcessed();
+    });
+
+    if (batch.length >= BATCH_SIZE) {
+      void flushBatch();
+    } else if (flushTimer === null) {
+      flushTimer = setTimeout(() => {
+        void flushBatch();
+      }, BATCH_TIMEOUT_MS);
     }
-    channel.ack(msg);
-  } catch {
-    if (msg.fields.redelivered) {
-      channel.reject(msg, false);
-      recordAnalyticsEventFailed();
-    } else {
-      channel.nack(msg, false, true);
-    }
-  }
+  });
+
+  // Metrics HTTP endpoint for Prometheus scraping.
+  const metricsServer = http.createServer((_req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain; version=0.0.4' });
+    res.end(renderWorkerMetrics());
+  });
+  metricsServer.listen(METRICS_PORT);
+
+  log('info', 'Analytics worker started', {
+    prefetch: PREFETCH,
+    batchSize: BATCH_SIZE,
+    metricsPort: METRICS_PORT,
+  });
+
+  return {
+    stop: async () => {
+      await flushBatch();
+      metricsServer.close();
+      await channel.close();
+      await connection.close();
+    },
+  };
 }
 
 function isMainModule(): boolean {
@@ -110,12 +197,11 @@ function isMainModule(): boolean {
 
 if (isMainModule()) {
   const worker = await startAnalyticsWorker(db);
-  console.log('Analytics worker started.');
   const stop = (): void => {
-    console.log('Analytics worker shutting down...');
+    log('info', 'Analytics worker shutting down...');
     void worker
       .stop()
-      .catch((e: unknown) => console.error('Error stopping worker', e))
+      .catch((e: unknown) => log('error', 'Error stopping worker', { error: (e as Error).message }))
       .then(() => closeDb())
       .finally(() => process.exit(0));
   };

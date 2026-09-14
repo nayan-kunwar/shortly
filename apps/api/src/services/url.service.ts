@@ -7,6 +7,7 @@ import { env } from '../config/env.js';
 import { ConflictError } from '../errors/conflict-error.js';
 import { GoneError } from '../errors/gone-error.js';
 import { NotFoundError } from '../errors/not-found-error.js';
+import { log } from '../observability/logger.js';
 import type { UrlRepository } from '../repositories/url.repository.js';
 import type { UpdateUrlPatch, UrlRecord } from '../types/url.js';
 import { encodeBase62 } from '../utils/base62.js';
@@ -193,7 +194,9 @@ export class UrlService {
       recordAnalyticsEventCreated();
     } catch (err) {
       // Analytics must never break redirects — not even a buggy emitter.
-      console.error(`Click emission failed (redirect unaffected): ${(err as Error).message}`);
+      log('error', 'Click emission failed (redirect unaffected)', {
+        error: (err as Error).message,
+      });
     }
     return resolved;
   }

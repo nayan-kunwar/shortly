@@ -61,6 +61,32 @@ export class ClickEventRepository {
     return rows.length > 0 ? 'inserted' : 'duplicate';
   }
 
+  /** Batch-insert multiple click events in one statement. Returns inserted/duplicate counts. */
+  async recordClickBatch(
+    events: { event: ClickEvent; eventId: string; enrichment?: ClickEnrichment }[],
+  ): Promise<{ inserted: number; duplicated: number }> {
+    if (events.length === 0) return { inserted: 0, duplicated: 0 };
+    const rows = await this.db
+      .insert(clickEvents)
+      .values(
+        events.map(({ event, eventId, enrichment }) => ({
+          eventId,
+          shortCode: event.shortCode,
+          clickedAt: new Date(event.clickedAt),
+          ip: event.ip,
+          userAgent: event.userAgent,
+          referrer: event.referer,
+          country: enrichment?.country ?? null,
+          deviceType: enrichment?.deviceType ?? null,
+          browser: enrichment?.browser ?? null,
+        })),
+      )
+      .onConflictDoNothing({ target: clickEvents.eventId })
+      .returning({ id: clickEvents.id });
+    const inserted = rows.length;
+    return { inserted, duplicated: events.length - inserted };
+  }
+
   /**
    * One dashboard read. Six small indexed queries, not one mega-query:
    * each GROUP BY rides idx_click_events_link_time, and the set is easy

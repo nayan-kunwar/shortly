@@ -1,4 +1,5 @@
 import { Redis } from 'ioredis';
+import { log } from '../observability/logger.js';
 import { env } from '../config/env.js';
 
 let client: Redis | undefined;
@@ -23,7 +24,7 @@ export function createRedisClient(url: string = env.REDIS_URL): Redis {
   redis.on('error', (err) => {
     // Never throw: Redis is a performance optimization, not the source of
     // truth. Every command site handles rejection via PG fallback.
-    console.error(`Redis error (degraded, PG fallback active): ${err.message}`);
+    log('error', 'Redis error (degraded, PG fallback active)', { error: err.message });
   });
   return redis;
 }

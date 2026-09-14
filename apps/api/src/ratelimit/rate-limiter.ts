@@ -1,5 +1,6 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import type { Redis } from 'ioredis';
+import { log } from '../observability/logger.js';
 import { getRedis } from '../redis/client.js';
 import { recordRateLimitExceeded } from './rate-limit-metrics.js';
 
@@ -62,7 +63,7 @@ export function createRateLimiter(options: RateLimitOptions): RequestHandler {
       ];
       [count, ttl] = result;
     } catch (err) {
-      console.error(`Rate limiter degraded (allowing request): ${(err as Error).message}`);
+      log('warn', 'Rate limiter degraded (allowing request)', { error: (err as Error).message });
       next();
       return;
     }
