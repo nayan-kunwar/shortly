@@ -146,8 +146,78 @@ export async function startPublisherLoop(db: Db): Promise<never> {
   }
 }
 
+/**
+ * Cancellable publisher for combined single-process mode (RUN_WORKERS=true).
+ * Returns a handle with stop() for graceful shutdown. Checks AbortSignal
+ * between iterations to break the loop cleanly.
+ *
+ * On stop: finishes the current batch, disconnects from RabbitMQ, and resolves.
+ * Safe to kill mid-batch: the outbox pattern re-delivers unmarked rows on restart.
+ */
+export interface PublisherHandle {
+  stop(): Promise<void>;
+}
+
+export async function startPublisher(db: Db): Promise<PublisherHandle> {
+  const publisher = new Publisher(db);
+  const controller = new AbortController();
+  let connected = false;
+
+  // Fire-and-forget loop — the signal breaks it on stop().
+  const loop = (async () => {
+    for (;;) {
+      if (controller.signal.aborted) break;
+      try {
+        if (!connected) {
+          await publisher.connect();
+          connected = true;
+        }
+        const { published } = await publisher.publishBatch();
+        if (published === 0) {
+          await cancellableSleep(POLL_INTERVAL_MS, controller.signal);
+        }
+      } catch (err) {
+        if (controller.signal.aborted) break;
+        connected = false;
+        log('error', 'Publisher error (retrying)', {
+          error: (err as Error).message,
+        });
+        await publisher.disconnect().catch(() => { /* ignore */ });
+        await cancellableSleep(
+          ERROR_BACKOFF_MS + Math.floor(Math.random() * 5000),
+          controller.signal,
+        );
+      }
+    }
+    await publisher.disconnect().catch(() => { /* ignore */ });
+  })();
+
+  log('info', 'Publisher started (combined mode)');
+
+  return {
+    stop: async () => {
+      log('info', 'Publisher stopping...');
+      controller.abort();
+      await loop;
+    },
+  };
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function cancellableSleep(ms: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 function isMainModule(): boolean {

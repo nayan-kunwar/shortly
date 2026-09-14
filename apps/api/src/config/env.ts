@@ -18,6 +18,7 @@ const envSchema = z.object({
   SSE_POLL_INTERVAL_MS: z.coerce.number().int().min(1000).max(60000).default(5000),
   SSE_MAX_CONNECTIONS: z.coerce.number().int().min(1).max(10000).default(1000),
   SSE_KEEPALIVE_MS: z.coerce.number().int().min(5000).max(120000).default(20000),
+  RUN_WORKERS: z.coerce.boolean().default(false),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

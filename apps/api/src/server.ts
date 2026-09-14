@@ -2,7 +2,7 @@ import { createApp } from './app.js';
 import { env } from './config/env.js';
 import { closeDb, db } from './db/db.js';
 import { log } from './observability/logger.js';
-import { closeRedis } from './redis/client.js';
+import { closeRedis, getRedis } from './redis/client.js';
 import { closeSubscriberClient, getSubscriberClient } from './redis/subscriber-client.js';
 import {
   ClickEventRepository,
@@ -12,6 +12,8 @@ import { OutboxRepository } from './outbox/outbox-repository.js';
 import { SseConnectionManager } from './sse/connection-manager.js';
 import { createAnalyticsSseController } from './controllers/analytics-sse.controller.js';
 import { createAnalyticsSseRouter } from './routes/analytics-stream.js';
+import { startPublisher, type PublisherHandle } from './workers/publisher.js';
+import { startAnalyticsWorker, type WorkerHandle } from './workers/analytics-worker.js';
 
 const PURGE_INTERVAL_MS = 60 * 60 * 1000; // every hour
 
@@ -26,6 +28,33 @@ app.use('/api/v1/urls', createAnalyticsSseRouter(sseController));
 const server = app.listen(env.PORT, () => {
   log('info', 'shortly listening', { baseUrl: env.BASE_URL, env: env.NODE_ENV });
 });
+
+// Worker handles (populated when RUN_WORKERS=true).
+let publisherHandle: PublisherHandle | undefined;
+let analyticsWorkerHandle: WorkerHandle | undefined;
+
+// Combined single-process mode: run API + publisher + analytics worker
+// in one process. Designed for Render free tier (1 dyno) and similar
+// platforms that don't support separate background workers.
+if (env.RUN_WORKERS) {
+  log('info', 'Starting combined server (API + publisher + analytics worker)');
+
+  // Publisher: fire-and-forget. Outbox handles redelivery on crash,
+  // so mid-batch termination on SIGTERM is safe.
+  void startPublisher(db).then((handle) => {
+    publisherHandle = handle;
+  }).catch((err) => {
+    log('error', 'Publisher failed to start', { error: (err as Error).message });
+  });
+
+  // Analytics worker: has graceful stop() that flushes pending batch.
+  // Pass getRedis() for SSE pub/sub (same connection as the API).
+  startAnalyticsWorker(db, env.RABBITMQ_URL, getRedis()).then((handle) => {
+    analyticsWorkerHandle = handle;
+  }).catch((err) => {
+    log('error', 'Analytics worker failed to start', { error: (err as Error).message });
+  });
+}
 
 // Purge scheduler: periodically clean published outbox rows and old click events.
 function startPurgeScheduler(): void {
@@ -73,7 +102,15 @@ function shutdown(signal: string): void {
     }
     void (async () => {
       try {
+        // Stop workers before closing connections.
+        // Order: SSE → analytics worker → publisher → Redis → PG.
         sseManager.close();
+        if (analyticsWorkerHandle !== undefined) {
+          await analyticsWorkerHandle.stop();
+        }
+        if (publisherHandle !== undefined) {
+          await publisherHandle.stop();
+        }
         await closeSubscriberClient();
         await closeDb();
         await closeRedis();
