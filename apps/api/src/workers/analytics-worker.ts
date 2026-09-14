@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import http from 'node:http';
 import type { ConsumeMessage } from 'amqplib';
+import { Redis } from 'ioredis';
 import {
   recordAnalyticsEventDuplicated,
   recordAnalyticsEventFailed,
@@ -18,6 +19,7 @@ import {
   connectRabbitMQ,
 } from '../rabbitmq/connection.js';
 import { env } from '../config/env.js';
+import { createRedisClient } from '../redis/client.js';
 
 const PREFETCH = 50;
 const BATCH_SIZE = 50;
@@ -59,10 +61,14 @@ function renderWorkerMetrics(): string {
  * Uses micro-batching: accumulates up to BATCH_SIZE messages or
  * BATCH_TIMEOUT_MS, then issues a single multi-row INSERT. Reduces DB
  * round-trips by 10-50x compared to one INSERT per message.
+ *
+ * After successful DB insert, publishes click events to Redis pub/sub
+ * channels for real-time SSE streaming to connected API clients.
  */
 export async function startAnalyticsWorker(
   db: Db,
   amqpUrl: string = env.RABBITMQ_URL,
+  redis?: Redis,
 ): Promise<WorkerHandle> {
   const repo = new ClickEventRepository(db);
   const connection = await connectRabbitMQ(amqpUrl);
@@ -97,6 +103,20 @@ export async function startAnalyticsWorker(
       for (const _ of Array(result.duplicated)) {
         recordAnalyticsEventDuplicated();
       }
+
+      // SSE: publish click events to Redis pub/sub for real-time streaming.
+      // Fire-and-forget — if Redis is down, SSE clients miss updates but no
+      // data is lost (events are already in PostgreSQL).
+      if (redis !== undefined) {
+        for (const m of toFlush) {
+          void redis
+            .publish(`analytics:click:${m.parsed.shortCode}`, JSON.stringify(m.parsed))
+            .catch((err) => {
+              log('warn', 'SSE publish failed', { error: (err as Error).message });
+            });
+        }
+      }
+
       for (const m of toFlush) {
         channel.ack(m.msg);
       }
@@ -185,13 +205,17 @@ function isMainModule(): boolean {
 }
 
 if (isMainModule()) {
-  const worker = await startAnalyticsWorker(db);
+  const redis = createRedisClient();
+  const worker = await startAnalyticsWorker(db, env.RABBITMQ_URL, redis);
   const stop = (): void => {
     log('info', 'Analytics worker shutting down...');
     void worker
       .stop()
       .catch((e: unknown) => log('error', 'Error stopping worker', { error: (e as Error).message }))
-      .then(() => closeDb())
+      .then(() => {
+        redis.disconnect();
+        return closeDb();
+      })
       .finally(() => process.exit(0));
   };
   process.on('SIGTERM', stop);

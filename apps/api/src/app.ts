@@ -41,7 +41,12 @@ export interface AppDeps {
   emitter?: ClickEmitter;
 }
 
-export function createApp(deps: AppDeps = {}): Application {
+export interface AppResult {
+  app: Application;
+  urlService: UrlService;
+}
+
+export function createApp(deps: AppDeps = {}): AppResult {
   const app = express();
 
   app.disable('x-powered-by');
@@ -198,5 +203,5 @@ export function createApp(deps: AppDeps = {}): Application {
     res.status(500).json({ error: 'InternalServerError', message: 'Internal Server Error' });
   });
 
-  return app;
+  return { app, urlService };
 }

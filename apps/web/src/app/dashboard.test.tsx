@@ -22,6 +22,13 @@ function mockRoutes(): void {
           json: async () => ({ totalUrls: 12, activeUrls: 10, totalClicks: 99, clicksToday: 4 }),
         };
       }
+      if (typeof url === 'string' && url.endsWith('/api/v1/stats/breakdowns')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ countries: {}, devices: {}, browsers: {}, referrers: {} }),
+        };
+      }
       return {
         ok: true,
         status: 200,

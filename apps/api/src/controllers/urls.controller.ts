@@ -93,6 +93,15 @@ export function createUrlsController(service: UrlService) {
       }
     },
 
+    /** GET /api/v1/stats/breakdowns. Global country/device/browser/referrer breakdowns. */
+    async getGlobalBreakdowns(_req: Request, res: Response, next: NextFunction): Promise<void> {
+      try {
+        res.status(200).json(await service.getGlobalBreakdowns());
+      } catch (err) {
+        next(err);
+      }
+    },
+
     /** GET /api/v1/urls (keyset page). Query validated, 400 on garbage. */
     async listUrls(req: Request, res: Response, next: NextFunction): Promise<void> {
       try {

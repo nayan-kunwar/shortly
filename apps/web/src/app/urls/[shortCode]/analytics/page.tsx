@@ -2,18 +2,21 @@
 
 import { use } from 'react';
 import { useAnalytics } from '../../../../features/analytics/hooks/use-analytics';
+import { useAnalyticsStream } from '../../../../features/analytics/hooks/use-analytics-stream';
 import { AnalyticsSummary } from '../../../../features/analytics/components/analytics-summary';
 import { BreakdownList } from '../../../../features/analytics/components/breakdown-list';
 import { ClicksChart } from '../../../../features/analytics/components/clicks-chart';
+import { LiveIndicator } from '../../../../features/analytics/components/live-indicator';
 
 /**
  * /urls/[shortCode]/analytics. States: loading skeleton, unavailable/error,
- * empty (zero clicks), and data. Manual refresh instead of polling — the
- * pipeline (M9–M11) is eventually consistent, and the note below says so.
+ * empty (zero clicks), and data. SSE provides real-time updates; manual
+ * refresh as fallback.
  */
 export default function AnalyticsPage({ params }: { params: Promise<{ shortCode: string }> }) {
   const { shortCode } = use(params);
   const query = useAnalytics(shortCode);
+  const { status: sseStatus } = useAnalyticsStream(shortCode);
 
   if (query.isPending) {
     return (
@@ -51,9 +54,12 @@ export default function AnalyticsPage({ params }: { params: Promise<{ shortCode:
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold tracking-tight">
-          Analytics <span className="font-mono text-lg text-gray-500">/{shortCode}</span>
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold tracking-tight">
+            Analytics <span className="font-mono text-lg text-gray-500">/{shortCode}</span>
+          </h1>
+          <LiveIndicator status={sseStatus} />
+        </div>
         <button
           type="button"
           disabled={query.isFetching}
@@ -82,6 +88,7 @@ export default function AnalyticsPage({ params }: { params: Promise<{ shortCode:
 
       <p className="mt-6 text-xs text-gray-500">
         Clicks travel an async pipeline — recent clicks may take a few seconds to appear.
+        {sseStatus === 'connected' && ' Real-time updates are active.'}
       </p>
     </div>
   );

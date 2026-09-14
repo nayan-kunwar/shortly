@@ -15,6 +15,9 @@ const envSchema = z.object({
   RATE_LIMIT_WINDOW: z.coerce.number().int().min(1).max(3600).default(60),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().min(1).max(100000).default(100),
   RABBITMQ_URL: z.string().min(1).default('amqp://guest:guest@localhost:5672'),
+  SSE_POLL_INTERVAL_MS: z.coerce.number().int().min(1000).max(60000).default(5000),
+  SSE_MAX_CONNECTIONS: z.coerce.number().int().min(1).max(10000).default(1000),
+  SSE_KEEPALIVE_MS: z.coerce.number().int().min(5000).max(120000).default(20000),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

@@ -34,7 +34,7 @@ afterAll(async () => {
 
 describe('observability', () => {
   it('tags responses with unique request ids', async () => {
-    const app = createApp();
+    const { app } = createApp();
     const first = await request(app).get('/health');
     const second = await request(app).get('/health');
     expect(first.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
@@ -42,7 +42,7 @@ describe('observability', () => {
   });
 
   it('reports ready with per-dependency checks', async () => {
-    const app = createApp();
+    const { app } = createApp();
     const res = await request(app).get('/ready');
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('ready');
@@ -52,7 +52,7 @@ describe('observability', () => {
   });
 
   it('counts requests, creations, and redirects with route-pattern labels', async () => {
-    const app = createApp();
+    const { app } = createApp();
     const created = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/m' });
     const code = String(created.body.shortCode);
     await request(app).get(`/${code}`).redirects(0);

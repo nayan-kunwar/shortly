@@ -25,6 +25,9 @@ const item: UrlListItem = {
   expiresAt: null,
   isActive: true,
   clicks: 7,
+  topDevice: null,
+  topBrowser: null,
+  topCountry: null,
 };
 
 describe('UrlTable', () => {

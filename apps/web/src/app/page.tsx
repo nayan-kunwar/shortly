@@ -100,7 +100,7 @@ export default function HomePage() {
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
         >
-          <div className="absolute left-1/2 top-0 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-gradient-to-b from-gray-100/80 to-transparent blur-3xl dark:from-gray-900/50" />
+          <div className="absolute left-1/2 top-0 h-125 w-200 -translate-x-1/2 rounded-full bg-linear-to-b from-gray-100/80 to-transparent blur-3xl dark:from-gray-900/50" />
         </div>
 
         <div className="mx-auto max-w-3xl text-center">
@@ -197,7 +197,7 @@ export default function HomePage() {
           {FEATURES.map(({ icon: Icon, title, desc, color, iconColor }) => (
             <div
               key={title}
-              className={`group rounded-2xl border border-gray-200 bg-gradient-to-br p-6 transition-all hover:shadow-lg hover:-translate-y-0.5 dark:border-gray-800 ${color}`}
+              className={`group rounded-2xl border border-gray-200 bg-linear-to-br p-6 transition-all hover:shadow-lg hover:-translate-y-0.5 dark:border-gray-800 ${color}`}
             >
               <div
                 className={`flex h-11 w-11 items-center justify-center rounded-xl bg-white shadow-sm dark:bg-gray-900 ${iconColor}`}
@@ -283,7 +283,7 @@ export default function HomePage() {
               {[40, 65, 45, 80, 55, 90, 70, 95, 60, 75, 85, 50].map((h, i) => (
                 <div
                   key={i}
-                  className="flex-1 rounded-t-sm bg-gradient-to-t from-gray-200 to-gray-100 dark:from-gray-800 dark:to-gray-700"
+                  className="flex-1 rounded-t-sm bg-linear-to-t from-gray-200 to-gray-100 dark:from-gray-800 dark:to-gray-700"
                   style={{ height: `${h}%` }}
                 />
               ))}

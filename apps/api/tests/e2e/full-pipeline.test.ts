@@ -55,7 +55,7 @@ async function clickCount(code: string): Promise<number> {
 
 describe('full pipeline e2e', () => {
   it('create → redirect → outbox → publish → consume → analytics API', async () => {
-    const app = createApp();
+    const { app } = createApp();
 
     // 1. Create through the API (validates + persists + invalidates).
     const created = await request(app)

@@ -32,7 +32,7 @@ afterAll(async () => {
 
 describe('GET /api/v1/stats', () => {
   it('returns global totals with UTC-day today boundary', async () => {
-    const app = createApp();
+    const { app } = createApp();
     const first = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/1' });
     await request(app).post('/api/v1/urls').send({ url: 'https://example.com/2' });
     await urls.deactivate(String(first.body.shortCode));
@@ -63,7 +63,7 @@ describe('GET /api/v1/stats', () => {
   });
 
   it('returns zeros on an empty database', async () => {
-    const app = createApp();
+    const { app } = createApp();
     const res = await request(app).get('/api/v1/stats');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ totalUrls: 0, activeUrls: 0, totalClicks: 0, clicksToday: 0 });

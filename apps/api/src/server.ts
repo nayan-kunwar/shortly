@@ -3,15 +3,25 @@ import { env } from './config/env.js';
 import { closeDb, db } from './db/db.js';
 import { log } from './observability/logger.js';
 import { closeRedis } from './redis/client.js';
+import { closeSubscriberClient, getSubscriberClient } from './redis/subscriber-client.js';
 import {
   ClickEventRepository,
   RAW_CLICK_RETENTION_DAYS,
 } from './analytics/click-event-repository.js';
 import { OutboxRepository } from './outbox/outbox-repository.js';
+import { SseConnectionManager } from './sse/connection-manager.js';
+import { createAnalyticsSseController } from './controllers/analytics-sse.controller.js';
+import { createAnalyticsSseRouter } from './routes/analytics-stream.js';
 
 const PURGE_INTERVAL_MS = 60 * 60 * 1000; // every hour
 
-const app = createApp();
+const { app, urlService } = createApp();
+
+// SSE: subscribe to Redis pub/sub and mount the streaming endpoint.
+// Created here (not in createApp) so tests don't need a live Redis subscriber.
+const sseManager = new SseConnectionManager(getSubscriberClient(), urlService);
+const sseController = createAnalyticsSseController(sseManager);
+app.use('/api/v1/urls', createAnalyticsSseRouter(sseController));
 
 const server = app.listen(env.PORT, () => {
   log('info', 'shortly listening', { baseUrl: env.BASE_URL, env: env.NODE_ENV });
@@ -63,6 +73,8 @@ function shutdown(signal: string): void {
     }
     void (async () => {
       try {
+        sseManager.close();
+        await closeSubscriberClient();
         await closeDb();
         await closeRedis();
       } catch (e: unknown) {

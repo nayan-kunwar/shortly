@@ -90,7 +90,7 @@ describe('outbox repository', () => {
 
 describe('outbox emitter wiring', () => {
   it('persists an outbox row on redirect (fire-and-forget)', async () => {
-    const app = createApp();
+    const { app } = createApp();
     const created = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/e' });
     const code = String(created.body.shortCode);
 

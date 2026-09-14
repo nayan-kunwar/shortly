@@ -21,4 +21,5 @@ export type {
   DayBucket,
   UrlAnalytics,
   GlobalStats,
+  GlobalBreakdowns,
 } from './types.js';

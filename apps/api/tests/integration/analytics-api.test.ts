@@ -56,7 +56,7 @@ async function seed(code: string): Promise<void> {
 
 describe('GET /api/v1/urls/:shortCode/analytics', () => {
   it('returns the dashboard payload for a known code', async () => {
-    const app = createApp();
+    const { app } = createApp();
     const created = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/a' });
     const code = String(created.body.shortCode);
     await seed(code);
@@ -74,14 +74,14 @@ describe('GET /api/v1/urls/:shortCode/analytics', () => {
   });
 
   it('answers 404 for unknown codes', async () => {
-    const app = createApp();
+    const { app } = createApp();
     const res = await request(app).get('/api/v1/urls/never/analytics');
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('NotFound');
   });
 
   it('uses a separate rate-limit namespace from writes', async () => {
-    const app = createApp({
+    const { app } = createApp({
       rateLimiter: createRateLimiter({
         windowSeconds: 60,
         maxRequests: 1,

@@ -151,6 +151,11 @@ export class UrlService {
     return { totalUrls, activeUrls, totalClicks, clicksToday };
   }
 
+  /** Dashboard breakdowns: countries, devices, browsers, referrers across all clicks. */
+  async getGlobalBreakdowns() {
+    return this.analytics.getGlobalBreakdowns();
+  }
+
   /**
    * Keyset list page (newest first). No total count by design (M-reads doc).
    */

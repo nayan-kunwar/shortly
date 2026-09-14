@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { and, count, desc, eq, ilike, lt, or } from 'drizzle-orm';
+import { and, count, desc, eq, ilike, lt, or, sql } from 'drizzle-orm';
+import type { PgColumn } from 'drizzle-orm/pg-core';
 import type { Db } from '../db/db.js';
 import { clickEvents, urls } from '../db/schema.js';
 import { ConflictError } from '../errors/conflict-error.js';
@@ -15,6 +16,9 @@ export interface ListUrlsInput {
 
 export interface ListedUrl extends UrlRecord {
   clicks: number;
+  topDevice: string | null;
+  topBrowser: string | null;
+  topCountry: string | null;
 }
 
 export interface ListUrlsResult {
@@ -177,6 +181,11 @@ export class UrlRepository {
    * on a growing table; the client pages until nextCursor is null.
    * Per-row click counts ride a LEFT JOIN (one query, not N+1); GROUP BY the
    * primary key covers the other columns via functional dependency.
+   *
+   * Mini-breakdowns (top device/browser/country) use correlated scalar
+   * subqueries: one per dimension, but all evaluated in a single round-trip.
+   * Each subquery counts clicks per value for the current URL's short code,
+   * orders by count DESC, and LIMIT 1 returns the winner.
    */
   async listUrls(input: ListUrlsInput): Promise<ListUrlsResult> {
     const conditions = [];
@@ -191,6 +200,19 @@ export class UrlRepository {
         ),
       );
     }
+
+    // Correlated scalar subquery: top value for a dimension per URL.
+    // COALESCE folds NULLs into 'unknown'/'direct' so the UI never shows blank.
+    const topValue = (column: PgColumn, fallback: string) =>
+      sql<string>`(
+        SELECT COALESCE(${column}, ${sql.raw(`'${fallback}'`)})
+        FROM ${clickEvents}
+        WHERE ${clickEvents.shortCode} = ${urls.shortCode}
+        GROUP BY ${column}
+        ORDER BY COUNT(*) DESC
+        LIMIT 1
+      )`;
+
     const rows = await this.db
       .select({
         id: urls.id,
@@ -203,6 +225,9 @@ export class UrlRepository {
         expiresAt: urls.expiresAt,
         isActive: urls.isActive,
         clicks: count(clickEvents.id),
+        topDevice: topValue(clickEvents.deviceType, 'unknown'),
+        topBrowser: topValue(clickEvents.browser, 'unknown'),
+        topCountry: topValue(clickEvents.country, 'unknown'),
       })
       .from(urls)
       .leftJoin(clickEvents, eq(clickEvents.shortCode, urls.shortCode))
@@ -215,7 +240,13 @@ export class UrlRepository {
     const page = hasMore ? rows.slice(0, input.limit) : rows;
     const last = page[page.length - 1];
     return {
-      items: page.map((r) => ({ ...toRecord(r), clicks: r.clicks })),
+      items: page.map((r) => ({
+        ...toRecord(r),
+        clicks: r.clicks,
+        topDevice: r.topDevice,
+        topBrowser: r.topBrowser,
+        topCountry: r.topCountry,
+      })),
       nextCursor: hasMore && last !== undefined ? encodeCursor(last.id) : null,
     };
   }

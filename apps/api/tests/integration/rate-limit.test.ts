@@ -34,7 +34,7 @@ function tightApp() {
 
 describe('rate limiting (fixed window)', () => {
   it('allows requests under the limit with quota headers', async () => {
-    const app = tightApp();
+    const { app } = tightApp();
     const first = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/1' });
     expect(first.status).toBe(201);
     expect(first.headers['x-ratelimit-limit']).toBe('2');
@@ -46,7 +46,7 @@ describe('rate limiting (fixed window)', () => {
   });
 
   it('answers 429 with Retry-After over the limit and counts it', async () => {
-    const app = tightApp();
+    const { app } = tightApp();
     await request(app).post('/api/v1/urls').send({ url: 'https://example.com/1' });
     await request(app).post('/api/v1/urls').send({ url: 'https://example.com/2' });
 
@@ -58,7 +58,7 @@ describe('rate limiting (fixed window)', () => {
   });
 
   it('never limits liveness (/health stays 200)', async () => {
-    const app = tightApp();
+    const { app } = tightApp();
     for (let i = 0; i < 5; i++) {
       const res = await request(app).get('/health');
       expect(res.status).toBe(200);
@@ -68,7 +68,7 @@ describe('rate limiting (fixed window)', () => {
   it('fails open when Redis is down (protection must not become outage)', async () => {
     const broken = createRedisClient('redis://localhost:6399');
     try {
-      const app = createApp({
+      const { app } = createApp({
         rateLimiter: createRateLimiter({
           windowSeconds: 60,
           maxRequests: 1,

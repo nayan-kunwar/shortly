@@ -1,1 +1,1 @@
-export type { GlobalStats } from '@shortly/shared';
+export type { GlobalStats, GlobalBreakdowns } from '@shortly/shared';

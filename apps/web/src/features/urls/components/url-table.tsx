@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { UrlListItem } from '../types';
 import { CopyButton } from './copy-button';
+import { MiniBreakdown } from './mini-breakdown';
 import { UrlStatusBadge } from './url-status-badge';
 
 function formatDate(value: string | null): string {
@@ -31,7 +32,7 @@ export function UrlTable({ items }: { items: UrlListItem[] }) {
 
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
-      <table className="w-full min-w-[720px] text-left text-sm">
+      <table className="w-full min-w-[960px] text-left text-sm">
         <thead>
           <tr className="border-b border-gray-200 text-gray-500 dark:border-gray-800">
             <th scope="col" className="px-4 py-3 font-medium">
@@ -44,10 +45,16 @@ export function UrlTable({ items }: { items: UrlListItem[] }) {
               Clicks
             </th>
             <th scope="col" className="px-4 py-3 font-medium">
-              Created
+              Top Device
             </th>
             <th scope="col" className="px-4 py-3 font-medium">
-              Expires
+              Top Browser
+            </th>
+            <th scope="col" className="px-4 py-3 font-medium">
+              Top Country
+            </th>
+            <th scope="col" className="px-4 py-3 font-medium">
+              Created
             </th>
             <th scope="col" className="px-4 py-3 font-medium">
               Status
@@ -64,15 +71,21 @@ export function UrlTable({ items }: { items: UrlListItem[] }) {
               className="border-b border-gray-100 last:border-0 dark:border-gray-900"
             >
               <td className="px-4 py-3 font-mono text-xs">{item.shortUrl}</td>
-              <td className="max-w-[240px] truncate px-4 py-3 text-gray-600 dark:text-gray-400">
+              <td className="max-w-[200px] truncate px-4 py-3 text-gray-600 dark:text-gray-400">
                 {item.originalUrl}
               </td>
               <td className="px-4 py-3 tabular-nums">{item.clicks}</td>
               <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                {formatDate(item.createdAt)}
+                <MiniBreakdown value={item.topDevice} />
               </td>
               <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                {formatDate(item.expiresAt)}
+                <MiniBreakdown value={item.topBrowser} />
+              </td>
+              <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                <MiniBreakdown value={item.topCountry} />
+              </td>
+              <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                {formatDate(item.createdAt)}
               </td>
               <td className="px-4 py-3">
                 <UrlStatusBadge isActive={item.isActive} expiresAt={item.expiresAt} />

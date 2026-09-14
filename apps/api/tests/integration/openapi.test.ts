@@ -28,7 +28,7 @@ const EXPECTED_ROUTES: [string, string][] = [
 
 describe('openapi contract', () => {
   it('serves a valid 3.0 spec covering every route', async () => {
-    const app = createApp();
+    const { app } = createApp();
     const res = await request(app).get('/docs.json');
     expect(res.status).toBe(200);
     const doc = res.body as OpenApiDoc;
@@ -40,14 +40,14 @@ describe('openapi contract', () => {
   });
 
   it('serves the Swagger UI explorer', async () => {
-    const app = createApp();
+    const { app } = createApp();
     const res = await request(app).get('/docs/');
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toMatch(/html/);
   });
 
   it('derives the create schema from the live validator (no drift)', async () => {
-    const app = createApp();
+    const { app } = createApp();
     const res = await request(app).get('/docs.json');
     const post = (
       res.body as {

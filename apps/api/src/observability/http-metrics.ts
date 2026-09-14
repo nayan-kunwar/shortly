@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { cacheMetrics } from '../cache/cache-metrics.js';
 import { analyticsMetrics } from '../analytics/analytics-metrics.js';
 import { rateLimitMetrics as rlMetrics } from '../ratelimit/rate-limit-metrics.js';
+import { renderSseMetrics } from '../sse/sse-metrics.js';
 import { log } from './logger.js';
 import { Counter, Histogram, renderMetrics } from './metrics.js';
 
@@ -55,6 +56,7 @@ export function renderAllMetrics(): string {
   for (const [name, help, value] of plain) {
     lines.push(`# HELP ${name} ${help}`, `# TYPE ${name} counter`, `${name} ${String(value)}`);
   }
+  lines.push(renderSseMetrics());
   return lines.join('\n') + '\n';
 }
 

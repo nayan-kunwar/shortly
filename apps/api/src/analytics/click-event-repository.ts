@@ -169,4 +169,36 @@ export class ClickEventRepository {
       .where(since !== undefined ? gte(clickEvents.clickedAt, since) : undefined);
     return rows[0]?.count ?? 0;
   }
+
+  /** GROUP BY one nullable column across ALL clicks (no shortCode filter). */
+  private async groupByGlobal(
+    column: PgColumn,
+    fallback: string,
+  ): Promise<Record<string, number>> {
+    const bucket = sql<string>`COALESCE(${column}, ${sql.raw(`'${fallback}'`)})`;
+    const rows = await this.db
+      .select({ key: bucket, count: count() })
+      .from(clickEvents)
+      .groupBy(bucket)
+      .orderBy(desc(count()));
+    const out: Record<string, number> = {};
+    for (const row of rows) out[row.key] = row.count;
+    return out;
+  }
+
+  /** Aggregate breakdowns across all clicks (dashboard widgets). */
+  async getGlobalBreakdowns(): Promise<{
+    countries: Record<string, number>;
+    devices: Record<string, number>;
+    browsers: Record<string, number>;
+    referrers: Record<string, number>;
+  }> {
+    const [countries, devices, browsers, referrers] = await Promise.all([
+      this.groupByGlobal(clickEvents.country, 'unknown'),
+      this.groupByGlobal(clickEvents.deviceType, 'unknown'),
+      this.groupByGlobal(clickEvents.browser, 'unknown'),
+      this.groupByGlobal(clickEvents.referrer, 'direct'),
+    ]);
+    return { countries, devices, browsers, referrers };
+  }
 }

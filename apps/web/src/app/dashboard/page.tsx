@@ -5,6 +5,8 @@ import { CreateUrlForm } from '../../features/urls/components/create-url-form';
 import { UrlTable } from '../../features/urls/components/url-table';
 import { useUrls } from '../../features/urls/hooks/use-urls';
 import { useStats } from '../../features/stats/hooks/use-stats';
+import { useBreakdowns } from '../../features/stats/hooks/use-breakdowns';
+import { BreakdownList } from '../../features/analytics/components/breakdown-list';
 
 function StatCard({ label, value }: { label: string; value: number | undefined }) {
   return (
@@ -21,11 +23,11 @@ function StatCard({ label, value }: { label: string; value: number | undefined }
 
 /**
  * Dashboard: live stats, quick create (F2 form reused verbatim), recent
- * URLs. No "activity feed" — there is no backend event stream for one, and
- * inventing activity from thin air would violate the mock-data rule (§31).
+ * URLs, and global breakdowns.
  */
 export default function DashboardPage() {
   const stats = useStats();
+  const breakdowns = useBreakdowns();
   const recents = useUrls('', 5);
   const recentItems = recents.data?.pages[0]?.items ?? [];
 
@@ -74,6 +76,24 @@ export default function DashboardPage() {
             <UrlTable items={recentItems} />
           )}
         </div>
+      </section>
+
+      <section aria-label="Breakdowns">
+        <h2 className="text-lg font-semibold">Analytics breakdowns</h2>
+        {breakdowns.isPending ? (
+          <p className="mt-3 text-sm text-gray-500">Loading breakdowns…</p>
+        ) : breakdowns.isError ? (
+          <p role="alert" className="mt-3 text-sm text-red-600">
+            Breakdowns are temporarily unavailable.
+          </p>
+        ) : breakdowns.data ? (
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            <BreakdownList title="Countries" data={breakdowns.data.countries} />
+            <BreakdownList title="Devices" data={breakdowns.data.devices} />
+            <BreakdownList title="Browsers" data={breakdowns.data.browsers} />
+            <BreakdownList title="Referrers" data={breakdowns.data.referrers} />
+          </div>
+        ) : null}
       </section>
     </div>
   );

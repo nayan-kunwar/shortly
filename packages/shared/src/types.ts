@@ -31,6 +31,9 @@ export interface UrlListItem {
   expiresAt: string | null;
   isActive: boolean;
   clicks: number;
+  topDevice: string | null;
+  topBrowser: string | null;
+  topCountry: string | null;
 }
 
 export type UrlDetails = UrlListItem;
@@ -71,4 +74,12 @@ export interface GlobalStats {
   activeUrls: number;
   totalClicks: number;
   clicksToday: number;
+}
+
+/** GET /api/v1/stats/breakdowns response. */
+export interface GlobalBreakdowns {
+  countries: Record<string, number>;
+  devices: Record<string, number>;
+  browsers: Record<string, number>;
+  referrers: Record<string, number>;
 }
