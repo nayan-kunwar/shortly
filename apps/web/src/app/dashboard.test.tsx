@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import Home from './page';
+import Home from './dashboard/page';
 
 process.env['NEXT_PUBLIC_API_URL'] = 'http://localhost:3000';
 

@@ -12,7 +12,7 @@ export interface NavItem {
 
 /** Single source of truth for product navigation (sidebar + mobile nav). */
 export const NAV_ITEMS: NavItem[] = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/create', label: 'Create', icon: Link2 },
   { href: '/urls', label: 'My URLs', icon: ListOrdered },
   { href: '/settings', label: 'Settings', icon: Settings },
@@ -25,7 +25,7 @@ export function NavLinks() {
     <nav aria-label="Primary">
       <ul className="space-y-1">
         {NAV_ITEMS.map((item) => {
-          const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+          const active = pathname === item.href || pathname.startsWith(item.href + '/');
           const Icon = item.icon;
           return (
             <li key={item.href}>
