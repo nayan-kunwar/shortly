@@ -45,7 +45,15 @@ export function createApp(deps: AppDeps = {}): Application {
   const app = express();
 
   app.disable('x-powered-by');
-  app.use(helmet());
+  // Helmet security headers — disable cross-origin isolation policies that
+  // block cross-origin API access from a separate frontend domain (Vercel).
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: false,
+      crossOriginOpenerPolicy: false,
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
   // Exactly one trusted proxy hop (Nginx, M17). Trusts X-Forwarded-For for
   // req.ip (rate limiting sees real clients, not the LB) while direct
   // connections (healthchecks, local dev) are unaffected — no XFF, no parse.
@@ -58,13 +66,16 @@ export function createApp(deps: AppDeps = {}): Application {
   app.use(requestLoggingMiddleware);
   app.use(express.json({ limit: '100kb' }));
 
-  // CORS: function form ensures only the configured origin gets an ACAO
-  // header. Same-origin / non-browser requests (no Origin) pass through.
-  // In production, CORS_ORIGIN must be set to the Vercel frontend URL.
+  // CORS: function form ensures only configured origins get an ACAO header.
+  // Same-origin / non-browser requests (no Origin) pass through.
+  // CORS_ORIGIN can be a single URL or comma-separated list.
+  const allowedOrigins = env.CORS_ORIGIN.split(',')
+    .map((o) => o.trim().replace(/\/+$/, ''));
   app.use(
     cors({
       origin: (origin, callback) => {
-        if (origin === undefined || origin === env.CORS_ORIGIN) {
+        const normalized = (origin ?? '').replace(/\/+$/, '');
+        if (normalized === '' || allowedOrigins.includes(normalized)) {
           callback(null, true);
         } else {
           callback(null, false);
