@@ -1,10 +1,9 @@
 import type { ReactNode } from 'react';
 import type { Metadata } from 'next';
 import './globals.css';
-import { Navbar, Sidebar } from '../components/layout/navbar';
 import { ThemeProvider } from '../components/layout/theme-provider';
-// import { OfflineBanner } from '../components/common/offline-banner';
 import { QueryProvider } from '../lib/query-client/provider';
+import { AppShell } from '../components/layout/app-shell';
 
 export const metadata: Metadata = {
   title: 'Shortly — URL Shortener',
@@ -18,12 +17,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <ThemeProvider>
           <QueryProvider>
-            {/* <OfflineBanner /> — disabled: false-positives in production */}
-            <Navbar />
-            <div className="mx-auto flex max-w-6xl">
-              <Sidebar />
-              <main className="min-w-0 flex-1 px-4 py-8">{children}</main>
-            </div>
+            <AppShell>{children}</AppShell>
           </QueryProvider>
         </ThemeProvider>
       </body>
