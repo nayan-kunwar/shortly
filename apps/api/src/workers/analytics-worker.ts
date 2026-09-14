@@ -71,18 +71,8 @@ export async function startAnalyticsWorker(
   await assertTopology(channel);
   await channel.prefetch(PREFETCH);
 
-  // DLQ consumer: log dead-lettered messages for visibility.
-  await channel.consume(CLICKS_DLQ, (msg) => {
-    if (msg === null) return;
-    const body = msg.content.toString();
-    log('warn', 'Dead-lettered message', {
-      queue: CLICKS_DLQ,
-      messageId: msg.properties.messageId,
-      body: body.slice(0, 500),
-      redelivered: msg.fields.redelivered,
-    });
-    channel.ack(msg);
-  });
+  // Note: DLQ messages accumulate for operator inspection / alerting.
+  // Do NOT auto-ack them here — tests and monitoring need queue depth.
 
   const batch: PendingMessage[] = [];
   let flushTimer: ReturnType<typeof setTimeout> | null = null;

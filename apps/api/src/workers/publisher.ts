@@ -100,6 +100,24 @@ export class Publisher {
   }
 }
 
+/**
+ * One-shot batch publish for tests and one-off invocations.
+ * Creates a connection, publishes, and closes. Prefer the Publisher class
+ * for production loops (persistent connection).
+ */
+export async function publishBatchOnce(
+  db: Db,
+  amqpUrl: string = env.RABBITMQ_URL,
+): Promise<PublishBatchResult> {
+  const publisher = new Publisher(db);
+  await publisher.connect(amqpUrl);
+  try {
+    return await publisher.publishBatch();
+  } finally {
+    await publisher.disconnect();
+  }
+}
+
 /** Production loop: poll, publish, back off on errors, die never. */
 export async function startPublisherLoop(db: Db): Promise<never> {
   const publisher = new Publisher(db);
