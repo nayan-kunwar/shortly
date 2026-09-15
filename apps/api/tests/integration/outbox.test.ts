@@ -2,7 +2,7 @@ import type { Channel, ChannelModel } from 'amqplib';
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { createApp } from '../../src/app.js';
+import { createApp, registerFallback } from '../../src/app.js';
 import { buildClickEvent } from '../../src/analytics/click-event.js';
 import { closeDb, db, pool } from '../../src/db/db.js';
 import { runMigrations } from '../../src/db/migrate.js';
@@ -91,6 +91,7 @@ describe('outbox repository', () => {
 describe('outbox emitter wiring', () => {
   it('persists an outbox row on redirect (fire-and-forget)', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const created = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/e' });
     const code = String(created.body.shortCode);
 

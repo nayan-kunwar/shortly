@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { createApp } from '../../src/app.js';
+import { createApp, registerFallback } from '../../src/app.js';
 import { closeDb, pool } from '../../src/db/db.js';
 import { runMigrations } from '../../src/db/migrate.js';
 import { closeRedis, getRedis } from '../../src/redis/client.js';
@@ -26,6 +26,7 @@ afterAll(async () => {
 describe('POST /api/v1/urls', () => {
   it('creates a short URL and answers 201 with shortCode/shortUrl/originalUrl', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const res = await request(app)
       .post('/api/v1/urls')
       .send({ url: 'https://example.com/very/long/url' });
@@ -40,6 +41,7 @@ describe('POST /api/v1/urls', () => {
 
   it('issues a distinct code per URL', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const first = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/1' });
     const second = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/2' });
     expect(first.status).toBe(201);
@@ -49,6 +51,7 @@ describe('POST /api/v1/urls', () => {
 
   it('accepts a custom alias and future expiry', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const res = await request(app)
       .post('/api/v1/urls')
       .send({
@@ -64,6 +67,7 @@ describe('POST /api/v1/urls', () => {
 
   it('rejects non-http(s) URLs with 400', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const res = await request(app).post('/api/v1/urls').send({ url: 'ftp://example.com/x' });
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('ValidationError');
@@ -71,6 +75,7 @@ describe('POST /api/v1/urls', () => {
 
   it('rejects garbage, missing, and over-long URLs with 400', async () => {
     const { app } = createApp();
+    registerFallback(app);
     for (const body of [
       { url: 'not-a-url' },
       {},
@@ -84,6 +89,7 @@ describe('POST /api/v1/urls', () => {
 
   it('rejects a past expiresAt with 400', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const res = await request(app)
       .post('/api/v1/urls')
       .send({
@@ -95,6 +101,7 @@ describe('POST /api/v1/urls', () => {
 
   it('answers 409 on duplicate custom alias', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const first = await request(app)
       .post('/api/v1/urls')
       .send({ url: 'https://example.com/a', customAlias: 'taken' });
@@ -110,6 +117,7 @@ describe('POST /api/v1/urls', () => {
 
   it('rejects reserved and too-short aliases with 400', async () => {
     const { app } = createApp();
+    registerFallback(app);
     for (const customAlias of ['health', 'HEALTH', 'metrics', 'ab']) {
       const res = await request(app)
         .post('/api/v1/urls')
@@ -124,6 +132,7 @@ describe('POST /api/v1/urls', () => {
     // anywhere in the path — the unique constraint arbitrates, losers get
     // 23505 → 409. If application-level checking existed, two could win.
     const { app } = createApp();
+    registerFallback(app);
     const results = await Promise.all(
       Array.from({ length: 10 }, (_, i) =>
         request(app)
@@ -137,6 +146,7 @@ describe('POST /api/v1/urls', () => {
 
   it('generates unique 7-character codes for multiple URLs', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const codes = new Set<string>();
     for (let i = 0; i < 20; i++) {
       const res = await request(app)
@@ -151,6 +161,7 @@ describe('POST /api/v1/urls', () => {
 
   it('resolves a pre-existing numeric short code via direct DB insert', async () => {
     const { app } = createApp();
+    registerFallback(app);
     await pool.query(
       `INSERT INTO urls (short_code, original_url) VALUES ('6', 'https://example.com/legacy')`,
     );
@@ -163,6 +174,7 @@ describe('POST /api/v1/urls', () => {
 describe('DELETE /api/v1/urls/:shortCode', () => {
   it('deactivates and the redirect becomes 410 (cache invalidated)', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const created = await request(app)
       .post('/api/v1/urls')
       .send({ url: 'https://example.com/doomed' });
@@ -184,6 +196,7 @@ describe('DELETE /api/v1/urls/:shortCode', () => {
 
   it('answers 404 for unknown codes', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const res = await request(app).delete('/api/v1/urls/never-existed');
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('NotFound');
@@ -191,6 +204,7 @@ describe('DELETE /api/v1/urls/:shortCode', () => {
 
   it('is idempotent: deleting twice still answers 200 and stays 410', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const created = await request(app)
       .post('/api/v1/urls')
       .send({ url: 'https://example.com/twice' });

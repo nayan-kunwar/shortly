@@ -16,15 +16,13 @@ export function createAnalyticsSseController(manager: SseConnectionManager) {
       try {
         const { shortCode } = shortCodeParams.parse(req.params);
 
-        // SSE headers
+        // SSE headers — all must be set BEFORE flushHeaders()
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache, no-transform');
         res.setHeader('Connection', 'keep-alive');
         res.setHeader('X-Accel-Buffering', 'no');
-        res.flushHeaders();
-
-        // Disable compression for SSE (responses are streamed, not buffered)
         res.setHeader('Content-Encoding', 'identity');
+        res.flushHeaders();
 
         // Register connection — manager handles the rest
         const connId = manager.addConnection(shortCode, res);

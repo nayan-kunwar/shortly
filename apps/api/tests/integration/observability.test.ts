@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { createApp } from '../../src/app.js';
+import { createApp, registerFallback } from '../../src/app.js';
 import { resetCacheMetrics } from '../../src/cache/cache-metrics.js';
 import { closeDb, pool } from '../../src/db/db.js';
 import { runMigrations } from '../../src/db/migrate.js';
@@ -35,6 +35,7 @@ afterAll(async () => {
 describe('observability', () => {
   it('tags responses with unique request ids', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const first = await request(app).get('/health');
     const second = await request(app).get('/health');
     expect(first.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
@@ -43,6 +44,7 @@ describe('observability', () => {
 
   it('reports ready with per-dependency checks', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const res = await request(app).get('/ready');
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('ready');
@@ -53,6 +55,7 @@ describe('observability', () => {
 
   it('counts requests, creations, and redirects with route-pattern labels', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const created = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/m' });
     const code = String(created.body.shortCode);
     await request(app).get(`/${code}`).redirects(0);

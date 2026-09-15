@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { createApp } from '../../src/app.js';
+import { createApp, registerFallback } from '../../src/app.js';
 import { ClickEventRepository } from '../../src/analytics/click-event-repository.js';
 import { closeDb, db, pool } from '../../src/db/db.js';
 import { runMigrations } from '../../src/db/migrate.js';
@@ -43,6 +43,7 @@ async function createMany(app: ReturnType<typeof createApp>['app'], n: number): 
 describe('GET /api/v1/urls', () => {
   it('pages newest-first through cursor chains with no total count', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const created = await createMany(app, 5);
     // Two clicks on the newest link: the list must attribute per-row counts
     // (a broken correlation would repeat the table total on every row).
@@ -87,6 +88,7 @@ describe('GET /api/v1/urls', () => {
 
   it('searches across code, destination, and alias', async () => {
     const { app } = createApp();
+    registerFallback(app);
     await request(app).post('/api/v1/urls').send({ url: 'https://github.com/pricing' });
     await request(app)
       .post('/api/v1/urls')
@@ -104,6 +106,7 @@ describe('GET /api/v1/urls', () => {
 
   it('rejects bad pagination input with 400', async () => {
     const { app } = createApp();
+    registerFallback(app);
     for (const query of ['?limit=0', '?limit=101', '?cursor=garbage!!']) {
       const res = await request(app).get(`/api/v1/urls${query}`);
       expect(res.status).toBe(400);
@@ -113,6 +116,7 @@ describe('GET /api/v1/urls', () => {
 
   it('matches LIKE wildcards literally', async () => {
     const { app } = createApp();
+    registerFallback(app);
     await request(app).post('/api/v1/urls').send({ url: 'https://example.com/100%_coverage' });
 
     const res = await request(app).get('/api/v1/urls?search=100%25_coverage');
@@ -124,6 +128,7 @@ describe('GET /api/v1/urls', () => {
 describe('GET /api/v1/urls/:shortCode', () => {
   it('returns details with lifetime clicks and shortUrl', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const created = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/d' });
     const code = String(created.body.shortCode);
     await analytics.recordClick(
@@ -151,6 +156,7 @@ describe('GET /api/v1/urls/:shortCode', () => {
 
   it('answers 404 for unknown codes', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const res = await request(app).get('/api/v1/urls/never');
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('NotFound');

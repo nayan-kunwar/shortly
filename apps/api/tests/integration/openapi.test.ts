@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { createApp } from '../../src/app.js';
+import { createApp, registerFallback } from '../../src/app.js';
 import { closeRedis } from '../../src/redis/client.js';
 import { afterAll } from 'vitest';
 
@@ -29,6 +29,7 @@ const EXPECTED_ROUTES: [string, string][] = [
 describe('openapi contract', () => {
   it('serves a valid 3.0 spec covering every route', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const res = await request(app).get('/docs.json');
     expect(res.status).toBe(200);
     const doc = res.body as OpenApiDoc;
@@ -41,6 +42,7 @@ describe('openapi contract', () => {
 
   it('serves the Swagger UI explorer', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const res = await request(app).get('/docs/');
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toMatch(/html/);
@@ -48,6 +50,7 @@ describe('openapi contract', () => {
 
   it('derives the create schema from the live validator (no drift)', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const res = await request(app).get('/docs.json');
     const post = (
       res.body as {

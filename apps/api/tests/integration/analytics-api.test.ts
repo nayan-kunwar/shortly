@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { createApp } from '../../src/app.js';
+import { createApp, registerFallback } from '../../src/app.js';
 import { ClickEventRepository } from '../../src/analytics/click-event-repository.js';
 import type { ClickEvent } from '../../src/analytics/click-event.js';
 import { closeDb, db, pool } from '../../src/db/db.js';
@@ -57,6 +57,7 @@ async function seed(code: string): Promise<void> {
 describe('GET /api/v1/urls/:shortCode/analytics', () => {
   it('returns the dashboard payload for a known code', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const created = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/a' });
     const code = String(created.body.shortCode);
     await seed(code);
@@ -75,6 +76,7 @@ describe('GET /api/v1/urls/:shortCode/analytics', () => {
 
   it('answers 404 for unknown codes', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const res = await request(app).get('/api/v1/urls/never/analytics');
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('NotFound');
@@ -88,6 +90,7 @@ describe('GET /api/v1/urls/:shortCode/analytics', () => {
         keyPrefix: 'test-write',
       }),
     });
+    registerFallback(app);
     const created = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/a' });
     expect(created.status).toBe(201);
     const code = String(created.body.shortCode);

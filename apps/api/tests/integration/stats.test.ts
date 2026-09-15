@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { createApp } from '../../src/app.js';
+import { createApp, registerFallback } from '../../src/app.js';
 import { ClickEventRepository } from '../../src/analytics/click-event-repository.js';
 import { closeDb, db, pool } from '../../src/db/db.js';
 import { runMigrations } from '../../src/db/migrate.js';
@@ -33,6 +33,7 @@ afterAll(async () => {
 describe('GET /api/v1/stats', () => {
   it('returns global totals with UTC-day today boundary', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const first = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/1' });
     await request(app).post('/api/v1/urls').send({ url: 'https://example.com/2' });
     await urls.deactivate(String(first.body.shortCode));
@@ -64,6 +65,7 @@ describe('GET /api/v1/stats', () => {
 
   it('returns zeros on an empty database', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const res = await request(app).get('/api/v1/stats');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ totalUrls: 0, activeUrls: 0, totalClicks: 0, clicksToday: 0 });

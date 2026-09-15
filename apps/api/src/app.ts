@@ -162,6 +162,16 @@ export function createApp(deps: AppDeps = {}): AppResult {
   // /ready, /metrics in M14) — Express matches in registration order.
   app.use('/', createRedirectRouter(urlsController));
 
+  return { app, urlService };
+}
+
+/**
+ * Register the 404 catch-all and central error handler.
+ * Called from server.ts AFTER all routes (including SSE) are mounted,
+ * so routes added post-createApp() are reachable.
+ * Tests can call this too if they need 404 handling.
+ */
+export function registerFallback(app: Application): void {
   // Express 5: bare fallback middleware (no '*' path — v5 uses a new path syntax).
   app.use((req: Request, res: Response) => {
     res.status(404).json({
@@ -205,8 +215,6 @@ export function createApp(deps: AppDeps = {}): AppResult {
       return;
     }
     if (err instanceof ServiceUnavailableError || isDatabaseUnavailable(err)) {
-      // The source of truth is unreachable: 503 (retryable, drainable),
-      // never 500 (which claims a bug). Message only — no driver detail.
       const message =
         err instanceof ServiceUnavailableError ? err.message : 'Service temporarily unavailable.';
       res.status(503).json({ error: 'ServiceUnavailable', message });
@@ -214,6 +222,4 @@ export function createApp(deps: AppDeps = {}): AppResult {
     }
     res.status(500).json({ error: 'InternalServerError', message: 'Internal Server Error' });
   });
-
-  return { app, urlService };
 }

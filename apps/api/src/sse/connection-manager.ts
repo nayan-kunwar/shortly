@@ -38,12 +38,23 @@ export class SseConnectionManager {
     private readonly subscriber: Redis,
     private readonly service: UrlService,
   ) {
-    // Subscribe to all analytics click events via pattern
-    this.subscriber.psubscribe('analytics:click:*', (err) => {
-      if (err) {
-        log('error', 'SSE: psubscribe failed', { error: (err as Error).message });
-      }
-    });
+    const doSubscribe = (): void => {
+      this.subscriber.psubscribe('analytics:click:*', (err) => {
+        if (err) {
+          log('error', 'SSE: psubscribe failed', { error: (err as Error).message });
+        } else {
+          log('info', 'SSE: subscribed to analytics:click:*');
+        }
+      });
+    };
+
+    // Wait for Redis subscriber to be ready before subscribing.
+    // enableOfflineQueue:false means commands fail if issued before connect.
+    if (this.subscriber.status === 'ready') {
+      doSubscribe();
+    } else {
+      this.subscriber.once('ready', doSubscribe);
+    }
 
     this.subscriber.on('pmessage', (_pattern: string, channel: string, message: string) => {
       const shortCode = channel.replace('analytics:click:', '');

@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { createApp } from '../../src/app.js';
+import { createApp, registerFallback } from '../../src/app.js';
 import { closeRedis } from '../../src/redis/client.js';
 
 afterAll(async () => {
@@ -22,6 +22,7 @@ describe('GET /health', () => {
 
   it('returns 404 for unknown routes (Express 5 fallback)', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const res = await request(app).get('/definitely-not-here');
     expect(res.status).toBe(404);
     expect(res.body).toMatchObject({ error: 'NotFound' });

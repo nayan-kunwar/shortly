@@ -1,4 +1,4 @@
-import { createApp } from './app.js';
+import { createApp, registerFallback } from './app.js';
 import { env } from './config/env.js';
 import { closeDb, db } from './db/db.js';
 import { log } from './observability/logger.js';
@@ -24,6 +24,10 @@ const { app, urlService } = createApp();
 const sseManager = new SseConnectionManager(getSubscriberClient(), urlService);
 const sseController = createAnalyticsSseController(sseManager);
 app.use('/api/v1/urls', createAnalyticsSseRouter(sseController));
+
+// 404 catch-all and error handler: registered AFTER SSE mount so all routes
+// (including those added post-createApp) are reachable before the fallback.
+registerFallback(app);
 
 const server = app.listen(env.PORT, () => {
   log('info', 'shortly listening', { baseUrl: env.BASE_URL, env: env.NODE_ENV });

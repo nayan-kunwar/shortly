@@ -1,7 +1,7 @@
 import type { Channel, ChannelModel } from 'amqplib';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { createApp } from '../../src/app.js';
+import { createApp, registerFallback } from '../../src/app.js';
 import { closeDb, db, pool } from '../../src/db/db.js';
 import { runMigrations } from '../../src/db/migrate.js';
 import { OutboxRepository } from '../../src/outbox/outbox-repository.js';
@@ -56,6 +56,7 @@ async function clickCount(code: string): Promise<number> {
 describe('full pipeline e2e', () => {
   it('create → redirect → outbox → publish → consume → analytics API', async () => {
     const { app } = createApp();
+    registerFallback(app);
 
     // 1. Create through the API (validates + persists + invalidates).
     const created = await request(app)

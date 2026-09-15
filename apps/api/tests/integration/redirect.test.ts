@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { createApp } from '../../src/app.js';
+import { createApp, registerFallback } from '../../src/app.js';
 import { UrlCache } from '../../src/cache/url-cache.js';
 import { ClickEventRepository } from '../../src/analytics/click-event-repository.js';
 import {
@@ -50,6 +50,7 @@ async function createCode(app: ReturnType<typeof createApp>['app'], url: string)
 describe('GET /:shortCode', () => {
   it('redirects with 302 and Location to the original URL', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const code = await createCode(app, 'https://example.com/landing');
 
     const res = await request(app).get(`/${code}`).redirects(0);
@@ -59,6 +60,7 @@ describe('GET /:shortCode', () => {
 
   it('redirects custom aliases too', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const create = await request(app)
       .post('/api/v1/urls')
       .send({ url: 'https://github.com/', customAlias: 'gh4' });
@@ -71,6 +73,7 @@ describe('GET /:shortCode', () => {
 
   it('answers 404 for unknown codes', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const res = await request(app).get('/doesnotexist').redirects(0);
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('NotFound');
@@ -78,6 +81,7 @@ describe('GET /:shortCode', () => {
 
   it('answers 410 for deactivated URLs', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const code = await createCode(app, 'https://example.com/bye');
     await service.deactivateUrl(code);
 
@@ -89,6 +93,7 @@ describe('GET /:shortCode', () => {
 
   it('answers 410 for expired URLs', async () => {
     const { app } = createApp();
+    registerFallback(app);
     const code = await createCode(app, 'https://example.com/old');
     await service.updateUrl(code, { expiresAt: new Date(Date.now() - 1_000) });
 
@@ -99,6 +104,7 @@ describe('GET /:shortCode', () => {
 
   it('still serves /health and API routes (registration order intact)', async () => {
     const { app } = createApp();
+    registerFallback(app);
     await expect(request(app).get('/health')).resolves.toMatchObject({ status: 200 });
     const res = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/order' });
     expect(res.status).toBe(201);
@@ -107,6 +113,7 @@ describe('GET /:shortCode', () => {
   it('emits one sanitized url.clicked event per successful redirect', async () => {
     const emitter = new CollectingClickEmitter();
     const { app } = createApp({ emitter });
+    registerFallback(app);
     const code = await createCode(app, 'https://example.com/counted');
 
     const res = await request(app)
@@ -130,6 +137,7 @@ describe('GET /:shortCode', () => {
   it('emits nothing for 404 and 410 answers', async () => {
     const emitter = new CollectingClickEmitter();
     const { app } = createApp({ emitter });
+    registerFallback(app);
     const code = await createCode(app, 'https://example.com/uncounted');
     await service.deactivateUrl(code);
 

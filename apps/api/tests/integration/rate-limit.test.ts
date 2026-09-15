@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { createApp } from '../../src/app.js';
+import { createApp, registerFallback } from '../../src/app.js';
 import { closeDb, pool } from '../../src/db/db.js';
 import { runMigrations } from '../../src/db/migrate.js';
 import { rateLimitMetrics, resetRateLimitMetrics } from '../../src/ratelimit/rate-limit-metrics.js';
@@ -76,6 +76,7 @@ describe('rate limiting (fixed window)', () => {
           redis: broken,
         }),
       });
+      registerFallback(app);
       const first = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/1' });
       const second = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/2' });
       // Over the limit AND Redis unreachable — both still served.
