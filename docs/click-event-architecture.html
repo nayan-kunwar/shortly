@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Click Event Architecture - Interactive Guide</title>
+<style>
+:root{--bg:#0f1117;--sf:#1a1d27;--sf2:#232734;--bd:#2e3348;--tx:#e4e6f0;--dm:#8b8fa8;--ac:#6c8cff;--ac2:#4ecdc4;--ac3:#ff6b9d;--gn:#4ade80;--rd:#f87171;--or:#fbbf24;--pu:#a78bfa}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"SF Mono","Cascadia Code","Fira Code",monospace;background:var(--bg);color:var(--tx);line-height:1.6;overflow-x:hidden}
+.hero{text-align:center;padding:60px 20px 40px;background:linear-gradient(180deg,#161925,var(--bg));border-bottom:1px solid var(--bd)}
+.hero h1{font-size:clamp(1.5rem,4vw,2.5rem);font-weight:700;background:linear-gradient(135deg,var(--ac),var(--ac2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:12px}
+.hero p{color:var(--dm);font-size:.95rem;max-width:600px;margin:0 auto}
+.tabs{display:flex;justify-content:center;gap:4px;padding:16px 20px;position:sticky;top:0;z-index:100;background:var(--bg);border-bottom:1px solid var(--bd);flex-wrap:wrap}
+.tab{padding:8px 16px;border:1px solid var(--bd);border-radius:8px;background:var(--sf);color:var(--dm);cursor:pointer;font-size:.8rem;font-family:inherit;transition:all .2s}
+.tab:hover{border-color:var(--ac);color:var(--tx)}.tab.active{background:var(--ac);color:#fff;border-color:var(--ac)}
+.sec{display:none;max-width:1100px;margin:0 auto;padding:40px 20px}.sec.active{display:block}
+.sec h2{font-size:1.5rem;margin-bottom:8px;color:var(--ac)}.sec h3{font-size:1.1rem;margin:24px 0 8px;color:var(--ac2)}.sec>p{color:var(--dm);margin-bottom:20px}
+.fr{display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:8px;flex-wrap:wrap}
+.fn{padding:14px 20px;border-radius:12px;border:2px solid var(--bd);background:var(--sf);text-align:center;min-width:130px;transition:all .3s;cursor:pointer}
+.fn:hover{border-color:var(--ac);transform:translateY(-2px);box-shadow:0 4px 20px rgba(108,140,255,.15)}
+.fn.lit{border-color:var(--ac)!important;box-shadow:0 0 25px rgba(108,140,255,.4);background:rgba(108,140,255,.08)}
+.fn .ic{font-size:1.5rem;margin-bottom:4px}.fn .lb{font-size:.75rem;font-weight:600}.fn .sb{font-size:.65rem;color:var(--dm);margin-top:2px}
+.fu{border-color:var(--ac3)}.fa{border-color:var(--ac)}.fc{border-color:var(--or)}.fp{border-color:var(--gn)}.fq{border-color:var(--pu)}.fw{border-color:var(--ac2)}.fs{border-color:var(--ac3)}.fo{border-color:var(--gn)}
+.fa2{padding:0 6px;color:var(--dm);font-size:1.2rem;flex-shrink:0}
+.sc{border:1px solid var(--bd);border-radius:12px;background:var(--sf);overflow:hidden;margin-bottom:12px;transition:all .3s}.sc:hover{border-color:var(--ac)}.sc.exp .sd{display:block}
+.sh{display:flex;align-items:center;gap:14px;padding:16px 20px;cursor:pointer}
+.sn{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0}
+.s1{background:rgba(255,107,157,.15);color:var(--ac3)}.s2{background:rgba(108,140,255,.15);color:var(--ac)}.s3{background:rgba(251,191,36,.15);color:var(--or)}.s4{background:rgba(167,139,250,.15);color:var(--pu)}.s5{background:rgba(78,205,196,.15);color:var(--ac2)}.s6{background:rgba(74,222,128,.15);color:var(--gn)}
+.st{font-weight:600;font-size:.95rem}.sst{font-size:.8rem;color:var(--dm)}.sch{margin-left:auto;color:var(--dm);transition:transform .2s}.sc.exp .sch{transform:rotate(180deg)}
+.sd{display:none;padding:0 20px 16px 70px;border-top:1px solid var(--bd)}.sd p{color:var(--dm);font-size:.85rem;margin:10px 0}
+.cb{background:#13151e;border:1px solid var(--bd);border-radius:8px;padding:14px 16px;font-size:.78rem;line-height:1.7;overflow-x:auto;margin:10px 0;white-space:pre-wrap;word-break:break-word}
+.kw{color:var(--ac3)}.fn2{color:var(--ac)}.str{color:var(--gn)}.cm{color:var(--dm);font-style:italic}.num{color:var(--or)}.ty{color:var(--ac2)}
+.ib{border-left:3px solid var(--ac);background:rgba(108,140,255,.05);padding:12px 16px;border-radius:0 8px 8px 0;margin:12px 0;font-size:.85rem}
+.ib.w{border-color:var(--or);background:rgba(251,191,36,.05)}.ib.ok{border-color:var(--gn);background:rgba(74,222,128,.05)}.ib.bad{border-color:var(--rd);background:rgba(248,113,113,.05)}
+.sb2{border:1px solid var(--bd);border-radius:12px;background:var(--sf);padding:24px;margin:20px 0}
+.btn{padding:8px 20px;border:1px solid var(--ac);border-radius:8px;background:transparent;color:var(--ac);cursor:pointer;font-family:inherit;font-size:.85rem;transition:all .2s;margin-right:8px;margin-bottom:8px}.btn:hover{background:var(--ac);color:#fff}.btn:disabled{opacity:.4;cursor:not-allowed}
+.sl{background:#13151e;border:1px solid var(--bd);border-radius:8px;padding:14px;font-size:.75rem;max-height:350px;overflow-y:auto;line-height:1.8;margin-top:16px}
+.ll{opacity:0;animation:fi .3s forwards}@keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.tm{color:var(--dm)}.ev{color:var(--ac)}.da{color:var(--ac2)}.wa{color:var(--or)}.er{color:var(--rd)}.ok2{color:var(--gn)}
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:16px}
+.fc2{border:1px solid var(--bd);border-radius:12px;background:var(--sf);padding:20px;cursor:pointer;transition:all .3s}.fc2:hover{border-color:var(--rd);transform:translateY(-2px)}
+.fc2 .ic{font-size:1.5rem;margin-bottom:8px}.fc2 h4{font-size:.95rem;margin-bottom:6px}.fc2>p{font-size:.8rem;color:var(--dm)}
+.fc2 .im{margin-top:10px;padding:8px 12px;border-radius:8px;font-size:.75rem;display:none}.fc2.exp .im{display:block}
+.is{background:rgba(74,222,128,.1);color:var(--gn)}.il{background:rgba(248,113,113,.1);color:var(--rd)}.it{background:rgba(251,191,36,.1);color:var(--or)}
+.stb{width:100%;border-collapse:collapse;font-size:.8rem;margin:12px 0}.stb th,.stb td{padding:8px 12px;border:1px solid var(--bd);text-align:left}.stb th{background:var(--sf2);font-weight:600;color:var(--ac)}.stb td{color:var(--dm)}
+.pk{color:var(--or);font-weight:600}.uq{color:var(--ac2)}
+.mb{display:flex;align-items:center;gap:12px;margin:8px 0}.mb .lb2{width:180px;font-size:.8rem;color:var(--dm);flex-shrink:0}.mb .bb{flex:1;height:24px;background:var(--sf2);border-radius:12px;overflow:hidden}.mb .bf{height:100%;border-radius:12px;transition:width 1s ease;display:flex;align-items:center;padding-left:10px;font-size:.7rem;font-weight:600;color:#fff}
+@media(max-width:768px){.fr{flex-direction:column;gap:0}.fa2{transform:rotate(90deg);margin:4px 0}.sd{padding-left:20px}.fg{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="hero"><h1>Click Event Architecture</h1><p>Interactive walkthrough: from user tap to dashboard chart.</p></div>
+<div class="tabs" id="tabs"></div>
+<div class="sec active" id="s-overview">
+<h2>The Journey of a Click</h2>
+<p>Click a short URL and see analytics update in real-time.</p>
+<div style="padding:30px 0">
+<div class="fr">
+<div class="fn fu"><div class="ic">&#x1f464;</div><div class="lb">User</div><div class="sb">Taps short URL</div></div><div class="fa2">&rarr;</div>
+<div class="fn fa"><div class="ic">&#x26a1;</div><div class="lb">Express API</div><div class="sb">GET /:shortCode</div></div><div class="fa2">&rarr;</div>
+<div class="fn fc"><div class="ic">&#x1f534;</div><div class="lb">Redis Cache</div><div class="sb">Cache-aside</div></div><div class="fa2">&rarr;</div>
+<div class="fn fp"><div class="ic">&#x1f418;</div><div class="lb">PostgreSQL</div><div class="sb">Source of truth</div></div>
+</div>
+<div style="text-align:center;color:var(--dm);font-size:.75rem;margin:12px 0">&#x2500;&#x2500;&#x2500;&#x2500; synchronous path (redirect happens here) &#x2500;&#x2500;&#x2500;&#x2500;</div>
+<div class="fr">
+<div class="fn" style="border-color:var(--or)"><div class="ic">&#x1f4e6;</div><div class="lb">Outbox</div><div class="sb">Staging area</div></div><div class="fa2">&rarr;</div>
+<div class="fn" style="border-color:var(--ac2)"><div class="ic">&#x1f4e1;</div><div class="lb">Publisher</div><div class="sb">Poll every 2s</div></div><div class="fa2">&rarr;</div>
+<div class="fn fq"><div class="ic">&#x1f407;</div><div class="lb">RabbitMQ</div><div class="sb">Message queue</div></div><div class="fa2">&rarr;</div>
+<div class="fn fw"><div class="ic">&#x2699;&#xfe0f;</div><div class="lb">Worker</div><div class="sb">Batch insert</div></div>
+</div>
+<div style="text-align:center;color:var(--dm);font-size:.75rem;margin:12px 0">&#x2500;&#x2500;&#x2500;&#x2500; async pipeline (background) &#x2500;&#x2500;&#x2500;&#x2500;</div>
+<div class="fr">
+<div class="fn fp"><div class="ic">&#x1f4ca;</div><div class="lb">click_events</div><div class="sb">Analytics DB</div></div><div class="fa2">&rarr;</div>
+<div class="fn fs"><div class="ic">&#x1f4e1;</div><div class="lb">Redis Pub/Sub</div><div class="sb">Real-time bridge</div></div><div class="fa2">&rarr;</div>
+<div class="fn fs"><div class="ic">&#x1f50c;</div><div class="lb">SSE Manager</div><div class="sb">Fan-out</div></div><div class="fa2">&rarr;</div>
+<div class="fn fo"><div class="ic">&#x1f4c8;</div><div class="lb">Dashboard</div><div class="sb">Live updates</div></div>
+</div></div>
+<div class="ib"><b>Key principle:</b> Redirect is synchronous and fast. Everything after outbox append is async &mdash; the user never waits for analytics.</div>
+<h3>Why This Architecture?</h3>
+<div class="mb"><div class="lb2">Redirect latency</div><div class="bb"><div class="bf" style="width:15%;background:var(--gn)">fast</div></div></div>
+<div class="mb"><div class="lb2">Analytics reliability</div><div class="bb"><div class="bf" style="width:95%;background:var(--ac)">at-least-once</div></div></div>
+<div class="mb"><div class="lb2">Throughput gain</div><div class="bb"><div class="bf" style="width:80%;background:var(--ac2)">10-50x batched</div></div></div>
+<div class="mb"><div class="lb2">Real-time</div><div class="bb"><div class="bf" style="width:90%;background:var(--ac3)">SSE + Redis pub/sub</div></div></div>
+</div>
+<div class="sec" id="s-flow">
+<h2>Live Data Flow</h2>
+<p>Watch a click event travel through the entire pipeline.</p>
+<div class="sb2">
+<div><button class="btn" id="sbtn" onclick="startFlow()">&#9654; Send Click</button><button class="btn" onclick="resetFlow()">&#8634; Reset</button></div>
+<div style="position:relative;padding:20px 0" id="fd">
+<div class="fr"><div class="fn fu" id="fu"><div class="ic">&#x1f464;</div><div class="lb">User</div></div><div class="fa2">&rarr;</div><div class="fn fa" id="fa"><div class="ic">&#x26a1;</div><div class="lb">API</div></div><div class="fa2">&rarr;</div><div class="fn fc" id="fr2"><div class="ic">&#x1f534;</div><div class="lb">Redis</div></div><div class="fa2">&rarr;</div><div class="fn fp" id="fp"><div class="ic">&#x1f418;</div><div class="lb">PostgreSQL</div></div></div>
+<div style="text-align:center;color:var(--dm);font-size:.7rem;margin:8px 0">&#9660; sync &#9660;</div>
+<div class="fr"><div class="fn" id="fo" style="border-color:var(--or)"><div class="ic">&#x1f4e6;</div><div class="lb">Outbox</div></div><div class="fa2">&rarr;</div><div class="fn" id="fpub" style="border-color:var(--ac2)"><div class="ic">&#x1f4e1;</div><div class="lb">Publisher</div></div><div class="fa2">&rarr;</div><div class="fn fq" id="fq"><div class="ic">&#x1f407;</div><div class="lb">RabbitMQ</div></div><div class="fa2">&rarr;</div><div class="fn fw" id="fw"><div class="ic">&#x2699;&#xfe0f;</div><div class="lb">Worker</div></div></div>
+<div style="text-align:center;color:var(--dm);font-size:.7rem;margin:8px 0">&#9660; async &#9660;</div>
+<div class="fr"><div class="fn fp" id="fc"><div class="ic">&#x1f4ca;</div><div class="lb">click_events</div></div><div class="fa2">&rarr;</div><div class="fn fs" id="fps"><div class="ic">&#x1f4e1;</div><div class="lb">Pub/Sub</div></div><div class="fa2">&rarr;</div><div class="fn fs" id="fss"><div class="ic">&#x1f50c;</div><div class="lb">SSE</div></div><div class="fa2">&rarr;</div><div class="fn fo" id="fdash"><div class="ic">&#x1f4c8;</div><div class="lb">Dashboard</div></div></div>
+</div>
+<div class="sl" id="fl"></div></div></div>
+<div class="sec" id="s-steps"><h2>Step by Step</h2><p>Click any step to expand.</p><div id="stc"><div class="sc" onclick="this.classList.toggle('exp')"><div class="sh"><div class="sn s1">1</div><div><div class="st">User Clicks Short URL</div><div class="sst">GET /abc123 -> Express router</div></div><div class="sch">&#9660;</div></div><div class="sd"><p>The redirect controller extracts IP, User-Agent, Referer from the request.</p><div class="cb"><span class="kw">async</span> <span class="fn2">redirect</span>(req, res, next) {
+  <span class="kw">const</span> { originalUrl } = <span class="kw">await</span> service.<span class="fn2">resolveUrl</span>(shortCode, {
+    ip: req.ip ?? <span class="kw">null</span>,
+    userAgent: req.<span class="fn2">get</span>(<span class="str">'user-agent'</span>) ?? <span class="kw">null</span>,
+    referer: req.<span class="fn2">get</span>(<span class="str">'referer'</span>) ?? <span class="kw">null</span>,
+  });
+  res.<span class="fn2">redirect</span>(<span class="num">302</span>, originalUrl);
+}</div><div class="ib"><b>Why 302?</b> 301 is permanent - browsers cache it forever. 302 = temporary - every click hits us.</div></div></div><div class="sc" onclick="this.classList.toggle('exp')"><div class="sh"><div class="sn s1">2</div><div><div class="st">Build & Sanitize Click Event</div><div class="sst">Privacy: anonymize IP, strip referer queries</div></div><div class="sch">&#9660;</div></div><div class="sd"><p><code>buildClickEvent</code> sanitizes raw request data.</p><div class="cb"><span class="kw">function</span> <span class="fn2">buildClickEvent</span>(ctx) {
+  <span class="kw">return</span> {
+    eventType: <span class="str">'url.clicked'</span>,
+    ip: <span class="fn2">anonymizeIp</span>(ctx.ip),       <span class="cm">// 192.168.1.100 -> 192.168.1.0</span>
+    referer: <span class="fn2">cleanReferer</span>(ctx.referer), <span class="cm">// origin + path only</span>
+  };
+}</div><div class="ib w"><b>Privacy:</b> IPv4 /24, IPv6 /48. Referer query strings stripped (leak tokens). UA stored raw.</div></div></div><div class="sc" onclick="this.classList.toggle('exp')"><div class="sh"><div class="sn s3">3</div><div><div class="st">Outbox Append (Fire-and-Forget)</div><div class="sst">Staging area - redirect never waits</div></div><div class="sch">&#9660;</div></div><div class="sd"><p>The emitter appends to outbox_events. Fire-and-forget - 302 returns immediately.</p><div class="cb"><span class="cm">// OutboxClickEmitter</span>
+<span class="fn2">emit</span>(event) {
+  void this.outbox.<span class="fn2">append</span>(<span class="str">'url.clicked'</span>, event).<span class="fn2">catch</span>((err) => {
+    log(<span class="str">'error'</span>, <span class="str">'Outbox append failed'</span>);
+  });
+}</div><div class="ib w"><b>Trade-off:</b> Crash between redirect and INSERT = one click lost. Accepted - redirect latency beats analytics durability.</div></div></div><div class="sc" onclick="this.classList.toggle('exp')"><div class="sh"><div class="sn s3">4</div><div><div class="st">Publisher Claims & Publishes</div><div class="sst">Poll 2s, FOR UPDATE SKIP LOCKED</div></div><div class="sch">&#9660;</div></div><div class="sd"><p>Publisher polls outbox, locks rows, publishes with confirms, marks done.</p><div class="cb"><span class="cm">// 1. Lock rows (no double-delivery)</span>
+<span class="kw">const</span> claimed = <span class="kw">await</span> tx.<span class="fn2">select</span>().<span class="fn2">from</span>(outbox)
+  .<span class="fn2">where</span>(<span class="fn2">isNull</span>(outbox.publishedAt))
+  .<span class="fn2">for</span>(<span class="str">'update'</span>, { skipLocked: <span class="kw">true</span> });
+
+<span class="cm">// 2. Publish with confirms</span>
+channel.<span class="fn2">publish</span>(<span class="str">'shortly.events'</span>, <span class="str">'url.clicked'</span>, buf,
+  { persistent: <span class="kw">true</span>, messageId: row.eventId });
+<span class="kw">await</span> channel.<span class="fn2">waitForConfirms</span>();
+
+<span class="cm">// 3. Mark published</span>
+<span class="kw">await</span> outbox.<span class="fn2">markPublishedBatch</span>(ids);</div><div class="ib ok"><b>Backoff:</b> Failed claims: 2s, 4s, 8s... capped 1h. Crashed publisher rows auto-retry.</div></div></div><div class="sc" onclick="this.classList.toggle('exp')"><div class="sh"><div class="sn s4">5</div><div><div class="st">RabbitMQ Routes Message</div><div class="sst">Topic exchange -> queue -> DLQ for poison</div></div><div class="sch">&#9660;</div></div><div class="sd"><p>Message routed via <code>shortly.events</code> topic exchange to <code>analytics.clicks</code> queue.</p><div class="ib"><b>Why topic?</b> One routing key now, but adding more event types later requires no infrastructure change.</div><div class="ib w"><b>DLQ:</b> Poison messages route to analytics.clicks.dlq. Prevents infinite requeue.</div></div></div><div class="sc" onclick="this.classList.toggle('exp')"><div class="sh"><div class="sn s5">6</div><div><div class="st">Worker Consumes & Batch Inserts</div><div class="sst">Micro-batch: 50 msgs or 100ms</div></div><div class="sch">&#9660;</div></div><div class="sd"><p>Consumer validates, micro-batches, inserts in one statement.</p><div class="cb"><span class="cm">// Batch insert - one statement, not 50</span>
+<span class="kw">await</span> repo.<span class="fn2">recordClickBatch</span>(events)
+  <span class="cm">// -> INSERT ... ON CONFLICT DO NOTHING</span>
+
+<span class="cm">// Publish to Redis for SSE</span>
+<span class="kw">void</span> redis.<span class="fn2">publish</span>(<span class="str">`analytics:click:${shortCode}`</span>, payload);
+
+<span class="cm">// Ack all</span>
+<span class="kw">for</span> (<span class="kw">const</span> m <span class="kw">of</span> batch) channel.<span class="fn2">ack</span>(m.msg);</div><div class="ib ok"><b>Idempotent:</b> ON CONFLICT DO NOTHING on event_id. Duplicates absorbed silently.</div></div></div><div class="sc" onclick="this.classList.toggle('exp')"><div class="sh"><div class="sn s6">7</div><div><div class="st">SSE Broadcasts to Dashboard</div><div class="sst">Redis pub/sub -> SSE manager -> clients</div></div><div class="sch">&#9660;</div></div><div class="sd"><p>Worker publishes to Redis pub/sub. SSE manager fetches full stats from PG, broadcasts.</p><div class="cb">subscriber.<span class="fn2">psubscribe</span>(<span class="str">'analytics:click:*'</span>);
+subscriber.<span class="fn2">on</span>(<span class="str">'pmessage'</span>, (_, channel) => {
+  <span class="kw">const</span> code = channel.<span class="fn2">replace</span>(<span class="str">'analytics:click:'</span>, <span class="str">''</span>);
+  <span class="kw">const</span> stats = <span class="kw">await</span> service.<span class="fn2">getUrlAnalytics</span>(code);
+  <span class="kw">for</span> (<span class="kw">const</span> c <span class="kw">of</span> conns)
+    c.res.<span class="fn2">write</span>(<span class="str">`event: analytics\ndata: ${JSON.stringify(stats)}\n\n`</span>);
+});</div><div class="ib"><b>Why fetch from PG?</b> Raw event = one click. Client needs full stats. PG is source of truth.</div></div></div></div></div>
+<div class="sec" id="s-simulate">
+<h2>Simulate Scenarios</h2><p>See how each component handles failures.</p>
+<div class="sb2"><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+<button class="btn" onclick="sim('normal')">&#10004;&#65039; Normal Click</button>
+<button class="btn" onclick="sim('redis')">&#128308; Redis Down</button>
+<button class="btn" onclick="sim('pg')">&#128024; PG Down</button>
+<button class="btn" onclick="sim('rmq')">&#128048; RabbitMQ Down</button>
+<button class="btn" onclick="sim('crash')">&#128165; Worker Crash</button>
+<button class="btn" onclick="sim('poison')">&#9760;&#65039; Poison Message</button>
+</div><div class="sl" id="sl"></div></div></div>
+<div class="sec" id="s-failures">
+<h2>Failure Modes</h2><p>Click any card to see impact.</p>
+<div class="fg">
+<div class="fc2" onclick="this.classList.toggle('exp')"><div class="ic">&#128308;</div><h4>Redis (Cache) Down</h4><p>Cache unavailable during redirect</p><div class="im is"><b>No data loss.</b> Falls back to PostgreSQL. Redirect still works, slightly slower.</div></div>
+<div class="fc2" onclick="this.classList.toggle('exp')"><div class="ic">&#x1f4e6;</div><h4>Outbox Append Fails</h4><p>INSERT throws</p><div class="im il"><b>One click lost.</b> Redirect succeeds (fire-and-forget). Documented trade-off.</div></div>
+<div class="fc2" onclick="this.classList.toggle('exp')"><div class="ic">&#x1f4e1;</div><h4>Publisher Crashes</h4><p>Dies between claim and mark</p><div class="im is"><b>No data loss.</b> Unmarked rows re-claimed on restart.</div></div>
+<div class="fc2" onclick="this.classList.toggle('exp')"><div class="ic">&#x1f407;</div><h4>RabbitMQ Down</h4><p>Broker unreachable</p><div class="im it"><b>No data loss.</b> Publisher retries with backoff. Events wait in outbox.</div></div>
+<div class="fc2" onclick="this.classList.toggle('exp')"><div class="ic">&#x2699;&#xfe0f;</div><h4>Worker Crashes</h4><p>Dies before acking</p><div class="im is"><b>No data loss.</b> Unacked messages return to queue. Idempotent INSERT absorbs duplicates.</div></div>
+<div class="fc2" onclick="this.classList.toggle('exp')"><div class="ic">&#x1f418;</div><h4>PostgreSQL Down</h4><p>Analytics DB unreachable</p><div class="im it"><b>No data loss.</b> Worker nacks messages (requeue). Wait until PG recovers.</div></div>
+<div class="fc2" onclick="this.classList.toggle('exp')"><div class="ic">&#x1f4e1;</div><h4>Redis Pub/Sub Down</h4><p>SSE bridge broken</p><div class="im it"><b>Data safe in PG.</b> SSE clients miss real-time updates. Reconnects when Redis recovers.</div></div>
+<div class="fc2" onclick="this.classList.toggle('exp')"><div class="ic">&#9760;&#65039;</div><h4>Poison Message</h4><p>Malformed event</p><div class="im it"><b>Isolated.</b> Schema validation fails, reject to DLQ. Pipeline continues.</div></div>
+</div></div>
+<div class="sec" id="s-schema">
+<h2>Database Schema</h2>
+<h3>outbox_events (staging area)</h3>
+<table class="stb"><tr><th>Column</th><th>Type</th><th>Constraints</th><th>Purpose</th></tr>
+<tr><td class="pk">id</td><td>BIGSERIAL</td><td>PRIMARY KEY</td><td>Row identifier</td></tr>
+<tr><td class="uq">event_id</td><td>TEXT</td><td>UNIQUE NOT NULL</td><td>Idempotency key</td></tr>
+<tr><td>event_type</td><td>TEXT</td><td>NOT NULL</td><td>url.clicked</td></tr>
+<tr><td>payload</td><td>JSONB</td><td>NOT NULL</td><td>Full ClickEvent</td></tr>
+<tr><td>attempts</td><td>INTEGER</td><td>DEFAULT 0</td><td>Claim count</td></tr>
+<tr><td>next_attempt_at</td><td>TIMESTAMPTZ</td><td>nullable</td><td>Backoff schedule</td></tr>
+<tr><td>published_at</td><td>TIMESTAMPTZ</td><td>nullable</td><td>NULL=pending, set=done</td></tr>
+<tr><td>created_at</td><td>TIMESTAMPTZ</td><td>DEFAULT NOW()</td><td>Created timestamp</td></tr></table>
+<h3>click_events (analytics storage)</h3>
+<table class="stb"><tr><th>Column</th><th>Type</th><th>Constraints</th><th>Purpose</th></tr>
+<tr><td class="pk">id</td><td>BIGSERIAL</td><td>PRIMARY KEY</td><td>Row identifier</td></tr>
+<tr><td class="uq">event_id</td><td>TEXT</td><td>UNIQUE NOT NULL</td><td>Idempotency key</td></tr>
+<tr><td>short_code</td><td>TEXT</td><td>NOT NULL</td><td>Link clicked</td></tr>
+<tr><td>clicked_at</td><td>TIMESTAMPTZ</td><td>NOT NULL</td><td>When clicked</td></tr>
+<tr><td>ip</td><td>TEXT</td><td>nullable</td><td>Anonymized IP</td></tr>
+<tr><td>user_agent</td><td>TEXT</td><td>nullable</td><td>Raw User-Agent</td></tr>
+<tr><td>referrer</td><td>TEXT</td><td>nullable</td><td>Origin + path</td></tr>
+<tr><td>country</td><td>TEXT</td><td>nullable</td><td>Parsed (future)</td></tr>
+<tr><td>device_type</td><td>TEXT</td><td>nullable</td><td>Parsed (future)</td></tr>
+<tr><td>browser</td><td>TEXT</td><td>nullable</td><td>Parsed (future)</td></tr></table>
+<h3>RabbitMQ Topology</h3>
+<div class="cb"><span class="cm">Exchange: shortly.events (topic, durable)</span>
+  Binding: <span class="str">url.clicked</span> &rarr; Queue: <span class="fn2">analytics.clicks</span>
+<span class="cm">Exchange: shortly.dlx (fanout, durable)</span>
+  Binding: <span class="str">#</span> &rarr; Queue: <span class="fn2">analytics.clicks.dlq</span>
+<span class="cm">Queue: analytics.clicks</span>
+  durable: <span class="num">true</span>, dead-letter-exchange: <span class="fn2">shortly.dlx</span></div>
+<h3>Key Indexes</h3>
+<div class="cb"><span class="cm">-- Outbox: find pending rows fast</span>
+CREATE INDEX idx_outbox_pending ON outbox_events (published_at) WHERE published_at IS NULL;
+<span class="cm">-- Clicks: analytics queries ride this</span>
+CREATE INDEX idx_click_events_link_time ON click_events (short_code, clicked_at);</div>
+</div>
+<div class="sec" id="s-scaling">
+<h2>Scaling Strategy</h2>
+<h3>Stage 1: Single Process (Current)</h3>
+<div class="cb">[API + Publisher + Worker] &rarr; [PostgreSQL] [Redis] [RabbitMQ]</div>
+<div class="ib ok">All three in one Node.js process. Works for low-to-moderate traffic.</div>
+<h3>Stage 2: Multiple API Instances</h3>
+<div class="cb">        Nginx (load balancer)
+              |
+     +--------+--------+
+     |        |        |
+  API #1   API #2   API #3  <span class="cm">&larr; stateless</span>
+     |        |        |
+     +--------+--------+
+              |
+       [PostgreSQL] [Redis] [RabbitMQ]</div>
+<div class="ib">APIs are stateless. Just copy the app. Nginx round-robins.</div>
+<h3>Stage 3: Separate Workers</h3>
+<div class="cb">API Servers     Publisher Worker    Analytics Worker
+    |                  |                    |
+    |             [PostgreSQL]          [RabbitMQ]
+    |                  |                    |
+    +--&gt; [PG]         +&gt; [RabbitMQ]       +&gt; [PG] [Redis]</div>
+<h3>Stage 4: ClickHouse</h3>
+<div class="ib w">At billions of events: 10x compression, 100x faster GROUP BY, 1M+ events/sec.</div>
+<h3>Capacity Numbers</h3>
+<div class="mb"><div class="lb2">100M URLs/month</div><div class="bb"><div class="bf" style="width:40%;background:var(--ac)">~38 creates/sec</div></div></div>
+<div class="mb"><div class="lb2">1B redirects/day</div><div class="bb"><div class="bf" style="width:85%;background:var(--ac3)">~11.5K QPS / 57K peak</div></div></div>
+<div class="mb"><div class="lb2">PG storage</div><div class="bb"><div class="bf" style="width:60%;background:var(--gn)">~500GB/year raw clicks</div></div></div>
+<div class="mb"><div class="lb2">Redis memory</div><div class="bb"><div class="bf" style="width:30%;background:var(--or)">~2GB hot cache</div></div></div>
+</div>
+<script>
+var tabs=[{id:"overview",l:"Overview"},{id:"flow",l:"Live Flow"},{id:"steps",l:"Step by Step"},{id:"simulate",l:"Simulate"},{id:"failures",l:"Failures"},{id:"schema",l:"Schema"},{id:"scaling",l:"Scaling"}];
+var tb=document.getElementById("tabs");
+tabs.forEach(function(t,i){var b=document.createElement("button");b.className="tab"+(i===0?" active":"");b.textContent=t.l;b.onclick=function(){show(t.id)};tb.appendChild(b)});
+function show(id){document.querySelectorAll(".sec").forEach(function(s){s.classList.remove("active")});document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("active")});document.getElementById("s-"+id).classList.add("active");var btns=document.querySelectorAll(".tab");tabs.forEach(function(t,i){if(t.id===id)btns[i].classList.add("active")})}
+var F=[[["fu",0,"[0ms] User taps short URL","ev"]],[["fa",400,"[1ms] API matches GET /:shortCode, extracts IP+UA+Referer","ev"]],[["fr2",400,"[2ms] Redis cache lookup... HIT","ev"]],[["fp",300,"[3ms] PostgreSQL would be queried on cache miss","ev"]],[["fo",300,"[5ms] Outbox append event (fire-and-forget, 302 sent immediately)","ev"]],[["",200,"[5ms] 302 Redirect sent to user","ok2"]],[["",600,"--- async pipeline (background) ---","cm"]],[["fpub",400,"[2005ms] Publisher polls, claims row FOR UPDATE SKIP LOCKED","ev"]],[["fq",400,"[2010ms] RabbitMQ routes to analytics.clicks queue","ev"]],[["fw",400,"[2020ms] Worker consumes, validates schema, adds to batch","ev"]],[["fc",400,"[2120ms] click_events batch INSERT (ON CONFLICT DO NOTHING)","ev"]],[["",300,"[2121ms] Worker acks + publishes to Redis Pub/Sub","ev"]],[["fps",300,"[2122ms] Redis Pub/Sub delivers to SSE manager","ev"]],[["fss",300,"[2123ms] SSE Manager fetches full stats from PG, broadcasts","ev"]],[["fdash",300,"[2125ms] Dashboard receives real-time update via SSE","ok2"]],[["",400,"[done] Pipeline complete! ~2.1s total (async)","ok2"]]];
+var flowRunning=false;
+function startFlow(){if(flowRunning)return;flowRunning=true;document.getElementById("sbtn").disabled=true;var lg=document.getElementById("fl");lg.innerHTML="";var i=0;function next(){if(i>=F.length){flowRunning=false;document.getElementById("sbtn").disabled=false;return}var s=F[i];if(s[0]){var el=document.getElementById(s[0]);if(el){el.classList.add("lit");setTimeout(function(){el.classList.remove("lit")},1200)}}lg.innerHTML+="<div class=\"ll\"><span class=\"tm\">"+s[2].split("]")[0]+"]</span> <span class=\""+s[3]+"\">"+s[2].split("] ").slice(1).join("] ")+"</span></div>";lg.scrollTop=lg.scrollHeight;i++;setTimeout(next,s[1])}next()}
+function resetFlow(){flowRunning=false;document.getElementById("sbtn").disabled=false;document.querySelectorAll("#fd .fn").forEach(function(n){n.classList.remove("lit")});document.getElementById("fl").innerHTML=""}
+var SD={"normal":["[0ms] User taps /abc123|ev","[1ms] API resolves URL from cache|ev","[2ms] Outbox event appended|ev","[5ms] 302 Redirect sent|ok2","[2005ms] Publisher claims and publishes|ev","[2010ms] RabbitMQ routes to queue|ev","[2020ms] Worker consumes, validates, batches|ev","[2120ms] PG INSERT into click_events|ev","[2125ms] Dashboard updated via SSE|ok2"],"redis":["[0ms] User taps /abc123|ev","[1ms] API tries Redis... CONNECTION REFUSED|er","[2ms] Fallback to PostgreSQL (source of truth)|wa","[15ms] 302 Redirect sent - slightly slower but works!|ok2","[2005ms] Publisher continues normally|ev","[2125ms] Dashboard updated (SSE reconnects when Redis recovers)|ok2"],"pg":["[0ms] User taps /abc123|ev","[1ms] API tries PostgreSQL... CONNECTION REFUSED|er","[1ms] 503 Service Unavailable returned|er","[2005ms] Publisher tries outbox... DB ERROR|er","[2010ms] Publisher retries in 10-15s (backoff)|wa","[2020ms] Worker tries... DB ERROR, nacks (requeue)|er","When PG recovers: outbox re-claimed, messages consumed. No data loss.|ok2"],"rmq":["[0ms] User taps /abc123|ev","[1ms] Outbox appended successfully|ev","[5ms] 302 Redirect sent - user unaffected!|ok2","[2005ms] Publisher tries RabbitMQ... CONNECTION REFUSED|er","[2010ms] Publisher retries in 10-15s (backoff)|wa","Events wait safely in outbox_events|cm","When RabbitMQ recovers: pending rows claimed and published. No data loss.|ok2"],"crash":["[0ms] Messages delivered to analytics worker|ev","[1ms] Worker processes batch, inserts to PG...|ev","[2ms] WORKER CRASHES before acking!|er","[3ms] RabbitMQ returns unacked messages to queue|wa","[5ms] New worker consumes redelivered messages|ev","[6ms] PG INSERT ON CONFLICT DO NOTHING|ev","Duplicate absorbed! event_id UNIQUE = exactly-once storage.|ok2"],"poison":["[0ms] Malformed message arrives in queue|ev","[1ms] Worker tries JSON.parse... succeeds|ev","[2ms] Zod validation: safeParse() -> FAILED|er","[3ms] Worker calls channel.reject(msg, false) - NO requeue|wa","[4ms] RabbitMQ routes to DLQ via dead-letter exchange|ev","Poison message isolated. Pipeline continues.|ok2","Operator inspects DLQ in CloudAMQP dashboard.|cm"]};
+function sim(type){var lg=document.getElementById("sl");lg.innerHTML="";var lines=SD[type]||SD.normal;var i=0;function next(){if(i>=lines.length)return;var parts=lines[i].split("|");lg.innerHTML+="<div class=\"ll\"><span class=\""+parts[1]+"\">"+parts[0]+"</span></div>";lg.scrollTop=lg.scrollHeight;i++;setTimeout(next,300)}next()}
+</script>
+</body>
+</html>
