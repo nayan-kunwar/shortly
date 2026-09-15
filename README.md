@@ -13,6 +13,7 @@ and failure scenarios.
   (soft delete with 410 Gone)
 - **Click analytics** pipeline: transactional outbox, RabbitMQ, worker,
   PostgreSQL analytics store
+- **Real-time analytics** via Server-Sent Events (SSE) with Redis pub/sub
 - **Distributed rate limiting** (100 requests/minute/IP via Redis Lua)
 - **Cache-aside Redis** with three-state entries (positive, negative,
   missing) and lazy expiry
@@ -27,37 +28,49 @@ and failure scenarios.
 ## Architecture
 
 ```text
-                              CLIENT
-                                 │
-                                 ▼
-                        NGINX (:8080)
-                     round-robin, failover
-                                 │
-                ┌────────────────┴────────────────┐
-                ▼                                 ▼
-           API #1                             API #2
-         (Express)                          (Express)
-                │                                 │
-                └─────────────┬───────────────────┘
-                              │
-              ┌───────────────┼───────────────┐
-              ▼               ▼               ▼
-           Redis         PostgreSQL       RabbitMQ
-          (cache)      (truth + outbox    (transport)
-              │          + clicks)            │
-              │               │               ▼
-              │               │        ┌──────────────┐
-              │               │        │  Publisher   │
-              │               │        └──────────────┘
-              │               │        ┌──────────────┐
-              │               │        │  Analytics   │
-              │               │        │   Worker     │
-              │               │        └──────────────┘
-              │               │
-              │          ┌────┴─────┐
-              │          │ Frontend │
-              │          │ (Next.js)│
-              │          └──────────┘
+                               CLIENT
+                                  │
+                                  ▼
+                         NGINX (:8080)
+                      round-robin, failover
+                                  │
+                 ┌────────────────┴────────────────┐
+                 ▼                                 ▼
+            API #1                             API #2
+          (Express)                          (Express)
+                 │                                 │
+                 └─────────────┬───────────────────┘
+                               │
+               ┌───────────────┼───────────────┐
+               ▼               ▼               ▼
+            Redis         PostgreSQL       RabbitMQ
+           (cache)      (truth + outbox    (transport)
+               │          + clicks)            │
+               │               │               ▼
+               │               │        ┌──────────────┐
+               │               │        │  Publisher   │
+               │               │        └──────────────┘
+               │               │        ┌──────────────┐
+               │               │        │  Analytics   │
+               │               │        │   Worker     │
+               │               │        └──────┬───────┘
+               │               │               │
+               │               │        redis.publish()
+               │               │               │
+               │               │        ┌──────▼───────┐
+               │               │        │ Redis Pub/Sub │
+               │               │        └──────┬───────┘
+               │               │               │
+               │               │        ┌──────▼───────┐
+               │               │        │   SSE        │
+               │               │        │ Connection   │
+               │               │        │   Manager    │
+               │               │        └──────┬───────┘
+               │               │               │
+               │          ┌────┴─────┐   EventSource
+               │          │ Frontend │◄──(real-time)
+               │          │ (Next.js)│
+               │          └──────────┘
 ```
 
 PostgreSQL is the source of truth. Redis is a performance optimization.
@@ -174,6 +187,7 @@ cd infrastructure && docker compose up -d --build
 | `LOG_LEVEL`               | `info`                                                | Log level (debug/info/warn/error) |
 | `NODE_ENV`                | `development`                                         | Environment                       |
 | `CORS_ORIGIN`             | `http://localhost:3001`                               | Allowed CORS origin               |
+| `RUN_WORKERS`             | `false`                                               | Start publisher + analytics worker in same process |
 
 See `apps/api/.env.example` and `apps/web/.env.example` for full lists.
 
@@ -198,16 +212,19 @@ safety.
 
 ## API Documentation
 
-| Method   | Path                           | Description                                  |
-| -------- | ------------------------------ | -------------------------------------------- |
-| `GET`    | `/health`                      | Liveness probe (no dependency checks)        |
-| `GET`    | `/ready`                       | Readiness probe (checks PG, Redis, RabbitMQ) |
-| `GET`    | `/metrics`                     | Prometheus metrics                           |
-| `POST`   | `/api/v1/urls`                 | Create short URL                             |
-| `GET`    | `/api/v1/urls/:code`           | URL details                                  |
-| `GET`    | `/api/v1/urls/:code/analytics` | Click analytics                              |
-| `DELETE` | `/api/v1/urls/:code`           | Deactivate URL                               |
-| `GET`    | `/:shortCode`                  | Redirect (302)                               |
+| Method   | Path                                      | Description                                  |
+| -------- | ----------------------------------------- | -------------------------------------------- |
+| `GET`    | `/`                                       | API info                                     |
+| `GET`    | `/health`                                 | Liveness probe (no dependency checks)        |
+| `GET`    | `/ready`                                  | Readiness probe (checks PG, Redis, RabbitMQ) |
+| `GET`    | `/metrics`                                | Prometheus metrics                           |
+| `POST`   | `/api/v1/urls`                            | Create short URL                             |
+| `GET`    | `/api/v1/urls`                            | List URLs (cursor pagination)                |
+| `GET`    | `/api/v1/urls/:code`                      | URL details                                  |
+| `GET`    | `/api/v1/urls/:code/analytics`            | Click analytics                              |
+| `GET`    | `/api/v1/urls/:code/analytics/stream`     | Real-time analytics (SSE)                    |
+| `DELETE` | `/api/v1/urls/:code`                      | Deactivate URL                               |
+| `GET`    | `/:shortCode`                             | Redirect (302)                               |
 
 ### Create URL
 
@@ -285,6 +302,9 @@ Redirect
 - **At-least-once delivery** with idempotent consumer (`ON CONFLICT DO NOTHING`)
 - **Poison message handling**: first failure requeues, second failure routes to DLQ
 - **Fire-and-forget emission**: redirect latency is never blocked by analytics
+- **Real-time SSE**: analytics worker publishes to Redis pub/sub after DB
+  insert; `SseConnectionManager` fetches aggregated stats from PostgreSQL
+  and broadcasts to connected browser clients
 
 ## Caching
 
@@ -349,6 +369,8 @@ Available at `GET /metrics`:
 | `analytics_events_processed`    | Events persisted to analytics DB |
 | `analytics_events_failed`       | Failed event processing          |
 | `rate_limit_exceeded`           | Rate-limited requests            |
+| `sse_active_connections`        | Current SSE connections          |
+| `sse_events_sent_total`         | Total SSE events sent            |
 
 ### Health Probes
 
@@ -444,14 +466,6 @@ requirements, data model, request flows, and cross-cutting principles:
 - **No link editing** — deactivate + recreate covers the lifecycle
 - **Analytics eventually consistent** — pipeline latency from outbox →
   publisher → RabbitMQ → worker → DB
-- **Publisher connection-per-batch** — new TCP connection every 2 seconds
-  (needs persistent connection hardening)
-- **No outbox/click purge scheduler** — tables grow without bound until
-  scheduled
-- **Worker metrics invisible** — publisher/worker counters not exposed via
-  API `/metrics` endpoint
-- **`listUrls` JOIN degrades** — LEFT JOIN + GROUP BY on click_events
-  slows for popular URLs
 - **Single Nginx** — load balancer is a single point of failure
 - **Fixed-window rate limiting** — allows 2× burst at window boundaries
 
@@ -459,14 +473,14 @@ requirements, data model, request flows, and cross-cutting principles:
 
 See `docs/milestone-23-architecture-review.md` for prioritized fixes:
 
-1. Publisher persistent connection and batch operations
-2. Outbox and click retention purge scheduler
-3. Micro-batch click inserts in analytics worker
-4. Structured logging for all operational error paths
-5. Security headers (helmet)
-6. Worker metrics exposure
+1. ~~Publisher persistent connection and batch operations~~ (done)
+2. ~~Outbox and click retention purge scheduler~~ (done)
+3. ~~Micro-batch click inserts in analytics worker~~ (done)
+4. ~~Structured logging for all operational error paths~~ (done)
+5. ~~Security headers (helmet)~~ (done)
+6. ~~Worker metrics exposure~~ (done)
 7. DLQ consumer and monitoring
-8. Denormalized click counts for `listUrls`
+8. ~~Denormalized click counts for `listUrls`~~ (done)
 9. ClickHouse for analytics at scale
 10. Multi-region deployment
 
@@ -539,6 +553,9 @@ shortly/                          pnpm workspace root
 | `docs/milestone-21-capacity-planning.md`   | M21: Capacity model                     |
 | `docs/milestone-22-scaling-strategy.md`    | M22: Scaling stages                     |
 | `docs/milestone-23-architecture-review.md` | M23: Final audit                        |
+| `docs/click-event-architecture.md`         | Click event pipeline walkthrough         |
+| `docs/click-event-architecture.html`       | Interactive HTML architecture guide      |
+| `docs/sse-realtime-analytics.md`           | SSE real-time analytics deep dive        |
 
 ## License
 
