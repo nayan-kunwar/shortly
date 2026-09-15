@@ -2,6 +2,7 @@ import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import type { Redis } from 'ioredis';
 import { log } from '../observability/logger.js';
 import { getRedis } from '../redis/client.js';
+import { realClientIp } from '../utils/client-ip.js';
 import { recordRateLimitExceeded } from './rate-limit-metrics.js';
 
 /**
@@ -33,10 +34,10 @@ export interface RateLimitOptions {
 }
 
 function clientIp(req: Request): string {
-  // Express parses X-Forwarded-For only with 'trust proxy' (M17 sets it
-  // behind Nginx). Until then this is the direct peer — correct locally,
-  // coarse behind shared NATs (documented limitation, not a bug).
-  return req.ip ?? 'unknown';
+  // Use realClientIp to handle multi-hop proxies (Render, Cloudflare).
+  // req.ip peels only `trust proxy` hops; behind 3+ proxies it returns
+  // a private pod IP, which would rate-limit ALL users to one shared bucket.
+  return realClientIp(req) ?? 'unknown';
 }
 
 /**

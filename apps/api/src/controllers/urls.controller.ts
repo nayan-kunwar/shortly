@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { NotFoundError } from '../errors/not-found-error.js';
 import { redirectRequestsTotal, urlCreationTotal } from '../observability/http-metrics.js';
 import type { UrlService } from '../services/url.service.js';
+import { realClientIp } from '../utils/client-ip.js';
 import { createUrlSchema, listUrlsQuerySchema } from '../validators/url.validator.js';
 
 const shortCodeParams = z.object({
@@ -43,7 +44,9 @@ export function createUrlsController(service: UrlService) {
         const { originalUrl } = await service.resolveUrl(shortCode, {
           // HTTP-layer facts in, sanitized event out: the service builds the
           // event via buildClickEvent (IP anonymized, referer stripped).
-          ip: req.ip ?? null,
+          // Use realClientIp() instead of req.ip: behind multi-hop proxies
+          // (Render, Cloudflare) req.ip returns a private pod IP.
+          ip: realClientIp(req),
           userAgent: req.get('user-agent') ?? null,
           referer: req.get('referer') ?? null,
         });

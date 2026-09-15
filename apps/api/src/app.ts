@@ -96,20 +96,6 @@ export function createApp(deps: AppDeps = {}): AppResult {
   // single-segment GETs that the redirect router would swallow as codes.
   app.use('/ready', readyRouter);
   app.use('/metrics', metricsRouter);
-
-  // TEMP debug endpoint — will be removed after diagnosing geoip issue
-  app.get('/debug-ip', (req, res) => {
-    res.json({
-      ip: req.ip,
-      ips: req.ips,
-      forwardedFor: req.headers['x-forwarded-for'],
-      realIp: req.headers['x-real-ip'],
-      connectingIp: req.headers['cf-connecting-ip'],
-      allHeaders: Object.fromEntries(
-        Object.entries(req.headers).filter(([k]) => k.startsWith('x-'))
-      ),
-    });
-  });
   // API docs (Swagger UI + raw JSON). Development only: no docs surface
   // in production, and /docs* would otherwise read as short codes.
   if (env.NODE_ENV !== 'production') {
