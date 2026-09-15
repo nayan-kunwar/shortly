@@ -20,6 +20,7 @@ import {
 } from '../rabbitmq/connection.js';
 import { env } from '../config/env.js';
 import { createRedisClient } from '../redis/client.js';
+import { enrichClick } from '../analytics/click-enrichment.js';
 
 const PREFETCH = 50;
 const BATCH_SIZE = 50;
@@ -95,6 +96,7 @@ export async function startAnalyticsWorker(
         toFlush.map((m) => ({
           event: m.parsed,
           eventId: m.eventId,
+          enrichment: enrichClick(m.parsed),
         })),
       );
       for (const _ of Array(result.inserted)) {
