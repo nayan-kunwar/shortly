@@ -10,11 +10,11 @@ import type { ClickEnrichment } from './click-event-repository.js';
  * Best-effort: any parsing failure returns nulls for that field.
  */
 export function enrichClick(event: ClickEvent): ClickEnrichment {
-  return {
-    browser: parseBrowser(event.userAgent),
-    deviceType: parseDeviceType(event.userAgent),
-    country: lookupCountry(event.ip),
-  };
+  const browser = parseBrowser(event.userAgent);
+  const deviceType = parseDeviceType(event.userAgent);
+  const country = lookupCountry(event.ip);
+  console.log(`[enrich] ip=${event.ip ?? 'null'} browser=${browser ?? 'null'} device=${deviceType ?? 'null'} country=${country ?? 'null'}`);
+  return { browser, deviceType, country };
 }
 
 function parseBrowser(ua: string | null): string | null {
