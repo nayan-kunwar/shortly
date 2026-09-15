@@ -145,6 +145,18 @@ export function createApp(deps: AppDeps = {}): AppResult {
     app.use('/api/v1/urls', urlsRouter);
   }
 
+  // Root: basic API info so GET / doesn't 404.
+  app.get('/', (_req, res) => {
+    res.json({
+      name: 'Shortly API',
+      version: '1.0.0',
+      health: '/health',
+      ready: '/ready',
+      metrics: '/metrics',
+      docs: env.NODE_ENV !== 'production' ? '/docs' : undefined,
+    });
+  });
+
   // ORDERING INVARIANT: the redirect router matches any single-segment GET
   // path, so it must be registered AFTER /health, /api/* (and later
   // /ready, /metrics in M14) — Express matches in registration order.
