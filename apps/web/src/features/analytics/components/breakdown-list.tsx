@@ -4,14 +4,14 @@ export function BreakdownList({ title, data }: { title: string; data: Record<str
   const max = entries[0]?.[1] ?? 0;
   if (entries.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+      <div className="rounded-xl border border-line bg-surface p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <h3 className="font-semibold">{title}</h3>
         <p className="mt-1 text-sm text-gray-500">No data yet.</p>
       </div>
     );
   }
   return (
-    <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+    <div className="rounded-xl border border-line bg-surface p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
       <h3 className="font-semibold">{title}</h3>
       <ul className="mt-3 space-y-2">
         {entries.map(([key, count]) => (
@@ -20,9 +20,9 @@ export function BreakdownList({ title, data }: { title: string; data: Record<str
               <span className="truncate">{key}</span>
               <span className="tabular-nums text-gray-600 dark:text-gray-400">{count}</span>
             </div>
-            <div className="mt-1 h-1.5 rounded bg-gray-100 dark:bg-gray-900">
+            <div className="mt-1 h-1.5 rounded bg-gray-100 dark:bg-gray-800">
               <div
-                className="h-1.5 rounded bg-gray-700 dark:bg-gray-300"
+                className="h-1.5 rounded bg-brand-500"
                 style={{ width: `${max === 0 ? 0 : Math.round((count / max) * 100)}%` }}
               />
             </div>

@@ -15,7 +15,7 @@ import type { DayBucket } from '../types';
 export function ClicksChart({ data }: { data: DayBucket[] }) {
   if (data.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 p-8 text-center text-sm text-gray-500 dark:border-gray-800">
+      <div className="rounded-xl border border-line bg-surface p-8 text-center text-sm text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900">
         No clicks yet. Clicks will appear here after people use your short URL.
       </div>
     );
@@ -28,7 +28,14 @@ export function ClicksChart({ data }: { data: DayBucket[] }) {
           <XAxis dataKey="date" tick={{ fontSize: 12 }} />
           <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
           <Tooltip />
-          <Area type="monotone" dataKey="count" name="Clicks" fillOpacity={0.25} />
+          <Area
+            type="monotone"
+            dataKey="count"
+            name="Clicks"
+            stroke="#fa5261"
+            fill="#fa5261"
+            fillOpacity={0.15}
+          />
         </AreaChart>
       </ResponsiveContainer>
     </div>

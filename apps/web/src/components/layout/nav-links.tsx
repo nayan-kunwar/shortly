@@ -31,13 +31,19 @@ export function NavLinks() {
               <Link
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
-                className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium ${
+                className={`relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   active
-                    ? 'bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-white'
-                    : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-900/50'
+                    ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-900/50 dark:hover:text-white'
                 }`}
               >
-                <Icon size={18} aria-hidden="true" />
+                {active && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r bg-brand-500"
+                  />
+                )}
+                <Icon size={18} aria-hidden="true" className={active ? 'text-brand-600 dark:text-brand-400' : ''} />
                 {item.label}
               </Link>
             </li>

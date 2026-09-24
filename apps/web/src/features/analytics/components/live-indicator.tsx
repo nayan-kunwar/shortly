@@ -2,7 +2,7 @@ import type { SseStatus } from '../hooks/use-analytics-stream';
 
 const statusConfig: Record<SseStatus, { color: string; label: string }> = {
   connecting: { color: 'bg-yellow-400', label: 'Connecting…' },
-  connected: { color: 'bg-green-500', label: 'Live' },
+  connected: { color: 'bg-brand-500', label: 'Live' },
   disconnected: { color: 'bg-gray-400', label: 'Offline' },
   error: { color: 'bg-red-500', label: 'Offline' },
 };

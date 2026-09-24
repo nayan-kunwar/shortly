@@ -104,7 +104,7 @@ export function CreateUrlForm() {
   return (
     <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} noValidate className="space-y-4">
       <div>
-        <label htmlFor="create-url" className="mb-1 block text-sm font-medium">
+        <label htmlFor="create-url" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
           Original URL
         </label>
         <TextInput
@@ -118,7 +118,7 @@ export function CreateUrlForm() {
       </div>
 
       <div>
-        <label htmlFor="create-alias" className="mb-1 block text-sm font-medium">
+        <label htmlFor="create-alias" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
           Custom alias <span className="font-normal text-gray-500">(optional)</span>
         </label>
         <TextInput
@@ -132,7 +132,7 @@ export function CreateUrlForm() {
       </div>
 
       <div>
-        <label htmlFor="create-expires" className="mb-1 block text-sm font-medium">
+        <label htmlFor="create-expires" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
           Expiration <span className="font-normal text-gray-500">(optional)</span>
         </label>
         <TextInput id="create-expires" type="datetime-local" {...register('expiresAt')} />
@@ -140,7 +140,7 @@ export function CreateUrlForm() {
       </div>
 
       {errors.root !== undefined && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {errors.root.message}
         </p>
       )}

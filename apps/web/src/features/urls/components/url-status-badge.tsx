@@ -13,7 +13,12 @@ export function UrlStatusBadge({
   const now = Date.now();
   const expired = expiresAt !== null && new Date(expiresAt).getTime() <= now;
   const label = !isActive ? 'Inactive' : expired ? 'Expired' : 'Active';
-  const tone = label === 'Active' ? 'text-green-700 dark:text-green-400' : 'text-gray-500';
+  const tone =
+    label === 'Active'
+      ? 'text-green-700 dark:text-green-400'
+      : label === 'Expired'
+        ? 'text-brand-600 dark:text-brand-400'
+        : 'text-gray-500';
   return (
     <span className={`inline-flex items-center gap-1.5 text-sm ${tone}`}>
       <span aria-hidden="true">●</span>

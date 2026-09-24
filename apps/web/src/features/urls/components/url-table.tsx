@@ -17,12 +17,12 @@ function formatDate(value: string | null): string {
 export function UrlTable({ items }: { items: UrlListItem[] }) {
   if (items.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 p-8 text-center dark:border-gray-800">
+      <div className="rounded-xl border border-line bg-surface p-8 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <p className="font-medium">No shortened URLs yet.</p>
         <p className="mt-1 text-sm text-gray-500">Create your first short URL to get started.</p>
         <Link
           href="/create"
-          className="mt-4 inline-block rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-gray-900"
+          className="mt-4 inline-block rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600"
         >
           Create short URL
         </Link>
@@ -31,10 +31,10 @@ export function UrlTable({ items }: { items: UrlListItem[] }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
+    <div className="overflow-x-auto rounded-xl border border-line bg-surface shadow-sm dark:border-gray-800 dark:bg-gray-900">
       <table className="w-full min-w-[960px] text-left text-sm">
         <thead>
-          <tr className="border-b border-gray-200 text-gray-500 dark:border-gray-800">
+          <tr className="border-b border-line text-gray-500 dark:border-gray-800">
             <th scope="col" className="px-4 py-3 font-medium">
               Short URL
             </th>
@@ -68,7 +68,7 @@ export function UrlTable({ items }: { items: UrlListItem[] }) {
           {items.map((item) => (
             <tr
               key={item.shortCode}
-              className="border-b border-gray-100 last:border-0 dark:border-gray-900"
+              className="border-b border-line last:border-0 dark:border-gray-800"
             >
               <td className="px-4 py-3 font-mono text-xs">{item.shortUrl}</td>
               <td className="max-w-[200px] truncate px-4 py-3 text-gray-600 dark:text-gray-400">
@@ -95,7 +95,7 @@ export function UrlTable({ items }: { items: UrlListItem[] }) {
                   <CopyButton text={item.shortUrl} />
                   <Link
                     href={`/urls/${encodeURIComponent(item.shortCode)}`}
-                    className="inline-flex items-center rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-gray-900"
+                    className="inline-flex items-center rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
                   >
                     View
                   </Link>
