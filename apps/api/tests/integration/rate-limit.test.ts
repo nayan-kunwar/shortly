@@ -6,6 +6,7 @@ import { runMigrations } from '../../src/db/migrate.js';
 import { rateLimitMetrics, resetRateLimitMetrics } from '../../src/ratelimit/rate-limit-metrics.js';
 import { createRateLimiter } from '../../src/ratelimit/rate-limiter.js';
 import { closeRedis, createRedisClient, getRedis } from '../../src/redis/client.js';
+import { registerAuth } from '../helpers.js';
 import { waitForRedis } from '../redis-ready.js';
 
 // Needs real PostgreSQL + Redis: docker compose up -d postgres redis && npm run db:migrate
@@ -35,22 +36,39 @@ function tightApp() {
 describe('rate limiting (fixed window)', () => {
   it('allows requests under the limit with quota headers', async () => {
     const { app } = tightApp();
-    const first = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/1' });
+    const auth = await registerAuth(app);
+    const first = await request(app)
+      .post('/api/v1/urls')
+      .set('Authorization', auth.Authorization)
+      .send({ url: 'https://example.com/1' });
     expect(first.status).toBe(201);
     expect(first.headers['x-ratelimit-limit']).toBe('2');
     expect(first.headers['x-ratelimit-remaining']).toBe('1');
 
-    const second = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/2' });
+    const second = await request(app)
+      .post('/api/v1/urls')
+      .set('Authorization', auth.Authorization)
+      .send({ url: 'https://example.com/2' });
     expect(second.status).toBe(201);
     expect(second.headers['x-ratelimit-remaining']).toBe('0');
   });
 
   it('answers 429 with Retry-After over the limit and counts it', async () => {
     const { app } = tightApp();
-    await request(app).post('/api/v1/urls').send({ url: 'https://example.com/1' });
-    await request(app).post('/api/v1/urls').send({ url: 'https://example.com/2' });
+    const auth = await registerAuth(app);
+    await request(app)
+      .post('/api/v1/urls')
+      .set('Authorization', auth.Authorization)
+      .send({ url: 'https://example.com/1' });
+    await request(app)
+      .post('/api/v1/urls')
+      .set('Authorization', auth.Authorization)
+      .send({ url: 'https://example.com/2' });
 
-    const blocked = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/3' });
+    const blocked = await request(app)
+      .post('/api/v1/urls')
+      .set('Authorization', auth.Authorization)
+      .send({ url: 'https://example.com/3' });
     expect(blocked.status).toBe(429);
     expect(blocked.body.error).toBe('TooManyRequests');
     expect(Number(blocked.headers['retry-after'])).toBeGreaterThan(0);
@@ -77,8 +95,15 @@ describe('rate limiting (fixed window)', () => {
         }),
       });
       registerFallback(app);
-      const first = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/1' });
-      const second = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/2' });
+      const auth = await registerAuth(app);
+      const first = await request(app)
+        .post('/api/v1/urls')
+        .set('Authorization', auth.Authorization)
+        .send({ url: 'https://example.com/1' });
+      const second = await request(app)
+        .post('/api/v1/urls')
+        .set('Authorization', auth.Authorization)
+        .send({ url: 'https://example.com/2' });
       // Over the limit AND Redis unreachable — both still served.
       expect(first.status).toBe(201);
       expect(second.status).toBe(201);

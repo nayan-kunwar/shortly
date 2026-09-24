@@ -6,8 +6,10 @@ export interface UrlRecord {
   originalUrl: string;
   /** NULL when the row uses a generated code; set for custom aliases (M6). */
   customAlias: string | null;
-  /** Reserved for future auth; always NULL until users exist. */
+  /** Owner. NULL for anonymous creates and pre-account legacy rows. */
   userId: string | null;
+  /** Guest owner for anonymous creates. Meaningful only while userId is NULL. */
+  guestId: string | null;
   createdAt: Date;
   updatedAt: Date;
   /** NULL means "never expires". Expiry is checked lazily at redirect time. */
@@ -22,6 +24,10 @@ export interface CreateUrlInput {
   originalUrl: string;
   customAlias: string | null;
   expiresAt: Date | null;
+  /** Owner. Account id for signed-in creates, NULL for anonymous ones. */
+  userId: string | null;
+  /** Guest anchor for anonymous creates, NULL for account-owned rows. */
+  guestId: string | null;
 }
 
 /** Patch for {@link UrlRepository.update}. `undefined` means "leave unchanged". */

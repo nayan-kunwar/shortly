@@ -9,6 +9,7 @@ import {
   RAW_CLICK_RETENTION_DAYS,
 } from './analytics/click-event-repository.js';
 import { OutboxRepository } from './outbox/outbox-repository.js';
+import { AuthRepository } from './auth/auth.repository.js';
 import { SseConnectionManager } from './sse/connection-manager.js';
 import { createAnalyticsSseController } from './controllers/analytics-sse.controller.js';
 import { createAnalyticsSseRouter } from './routes/analytics-stream.js';
@@ -17,13 +18,13 @@ import { startAnalyticsWorker, type WorkerHandle } from './workers/analytics-wor
 
 const PURGE_INTERVAL_MS = 60 * 60 * 1000; // every hour
 
-const { app, urlService } = createApp();
+const { app, urlService, requireAuth } = createApp();
 
 // SSE: subscribe to Redis pub/sub and mount the streaming endpoint.
 // Created here (not in createApp) so tests don't need a live Redis subscriber.
 const sseManager = new SseConnectionManager(getSubscriberClient(), urlService);
 const sseController = createAnalyticsSseController(sseManager);
-app.use('/api/v1/urls', createAnalyticsSseRouter(sseController));
+app.use('/api/v1/urls', requireAuth, createAnalyticsSseRouter(sseController));
 
 // 404 catch-all and error handler: registered AFTER SSE mount so all routes
 // (including those added post-createApp) are reachable before the fallback.
@@ -60,10 +61,12 @@ if (env.RUN_WORKERS) {
   });
 }
 
-// Purge scheduler: periodically clean published outbox rows and old click events.
+// Purge scheduler: periodically clean published outbox rows, old click events,
+// and expired sessions.
 function startPurgeScheduler(): void {
   const outbox = new OutboxRepository(db);
   const clicks = new ClickEventRepository(db);
+  const auth = new AuthRepository(db);
 
   const purge = async (): Promise<void> => {
     try {
@@ -84,6 +87,14 @@ function startPurgeScheduler(): void {
       }
     } catch (err) {
       log('error', 'Click purge failed', { error: (err as Error).message });
+    }
+    try {
+      const sessionsPurged = await auth.purgeExpiredSessions();
+      if (sessionsPurged > 0) {
+        log('info', 'Purged expired sessions', { count: sessionsPurged });
+      }
+    } catch (err) {
+      log('error', 'Session purge failed', { error: (err as Error).message });
     }
   };
 

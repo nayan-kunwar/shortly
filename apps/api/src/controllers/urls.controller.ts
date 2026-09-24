@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { NextFunction, Request, Response } from 'express';
 import { NotFoundError } from '../errors/not-found-error.js';
+import { UnauthorizedError } from '../errors/unauthorized-error.js';
 import { redirectRequestsTotal, urlCreationTotal } from '../observability/http-metrics.js';
 import type { UrlService } from '../services/url.service.js';
 import { realClientIp } from '../utils/client-ip.js';
@@ -10,6 +11,10 @@ const shortCodeParams = z.object({
   shortCode: z.string().min(1).max(64),
 });
 
+const claimSchema = z.object({
+  guestId: z.string().uuid('guestId must be a UUID'),
+});
+
 /**
  * Controller: HTTP in/out only. Parses with Zod (throws ZodError → 400 via
  * the central error handler), delegates to the service, answers 201.
@@ -17,13 +22,37 @@ const shortCodeParams = z.object({
  * rejections on its own; explicit is version-proof and readable).
  */
 export function createUrlsController(service: UrlService) {
+  function requireUserId(req: Request): string {
+    if (req.userId === undefined) throw new UnauthorizedError();
+    return req.userId;
+  }
+
   return {
     async createUrl(req: Request, res: Response, next: NextFunction): Promise<void> {
       try {
         const input = createUrlSchema.parse(req.body);
-        const result = await service.createShortUrl(input);
+        // Identity comes from the gate: an account, or a guest anchor.
+        // optionalAuth guarantees exactly one of the two is set.
+        const identity =
+          req.userId !== undefined ? { userId: req.userId } : { guestId: req.guestId ?? null };
+        const result = await service.createShortUrl(input, identity);
         urlCreationTotal.inc();
         res.status(201).json(result);
+      } catch (err) {
+        next(err);
+      }
+    },
+
+    /**
+     * POST /api/v1/urls/claim. Move the caller's guest links onto their
+     * account. Idempotent: unknown anchors and repeat claims answer 200
+     * with whatever moved (possibly nothing) — never an error.
+     */
+    async claimGuestLinks(req: Request, res: Response, next: NextFunction): Promise<void> {
+      try {
+        const { guestId } = claimSchema.parse(req.body);
+        const claimed = await service.claimGuestLinks(guestId, requireUserId(req));
+        res.status(200).json({ claimed });
       } catch (err) {
         next(err);
       }
@@ -67,7 +96,7 @@ export function createUrlsController(service: UrlService) {
     async deleteUrl(req: Request, res: Response, next: NextFunction): Promise<void> {
       try {
         const { shortCode } = shortCodeParams.parse(req.params);
-        const row = await service.deactivateUrl(shortCode);
+        const row = await service.deactivateUrl(shortCode, requireUserId(req));
         if (row === null) {
           throw new NotFoundError(`Unknown short code: ${shortCode}`);
         }
@@ -81,25 +110,25 @@ export function createUrlsController(service: UrlService) {
     async getAnalytics(req: Request, res: Response, next: NextFunction): Promise<void> {
       try {
         const { shortCode } = shortCodeParams.parse(req.params);
-        res.status(200).json(await service.getUrlAnalytics(shortCode));
+        res.status(200).json(await service.getUrlAnalytics(shortCode, requireUserId(req)));
       } catch (err) {
         next(err);
       }
     },
 
     /** GET /api/v1/stats. Global dashboard totals, no params. */
-    async getGlobalStats(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    async getGlobalStats(req: Request, res: Response, next: NextFunction): Promise<void> {
       try {
-        res.status(200).json(await service.getGlobalStats());
+        res.status(200).json(await service.getGlobalStats(requireUserId(req)));
       } catch (err) {
         next(err);
       }
     },
 
     /** GET /api/v1/stats/breakdowns. Global country/device/browser/referrer breakdowns. */
-    async getGlobalBreakdowns(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    async getGlobalBreakdowns(req: Request, res: Response, next: NextFunction): Promise<void> {
       try {
-        res.status(200).json(await service.getGlobalBreakdowns());
+        res.status(200).json(await service.getGlobalBreakdowns(requireUserId(req)));
       } catch (err) {
         next(err);
       }
@@ -109,7 +138,7 @@ export function createUrlsController(service: UrlService) {
     async listUrls(req: Request, res: Response, next: NextFunction): Promise<void> {
       try {
         const query = listUrlsQuerySchema.parse(req.query);
-        res.status(200).json(await service.listUrls(query));
+        res.status(200).json(await service.listUrls(query, requireUserId(req)));
       } catch (err) {
         next(err);
       }
@@ -119,7 +148,7 @@ export function createUrlsController(service: UrlService) {
     async getUrlDetails(req: Request, res: Response, next: NextFunction): Promise<void> {
       try {
         const { shortCode } = shortCodeParams.parse(req.params);
-        res.status(200).json(await service.getUrlDetails(shortCode));
+        res.status(200).json(await service.getUrlDetails(shortCode, requireUserId(req)));
       } catch (err) {
         next(err);
       }

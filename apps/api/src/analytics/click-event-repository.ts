@@ -1,7 +1,7 @@
-import { count, desc, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, lte, sql } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 import type { Db } from '../db/db.js';
-import { clickEvents } from '../db/schema.js';
+import { clickEvents, urls } from '../db/schema.js';
 import type { ClickEvent } from './click-event.js';
 
 export type RecordClickResult = 'inserted' | 'duplicate';
@@ -161,24 +161,30 @@ export class ClickEventRepository {
     return rows[0]?.count ?? 0;
   }
 
-  /** Global click total, optionally since a timestamp (dashboard "today"). */
-  async countAll(since?: Date | undefined): Promise<number> {
+  /** Click total for one owner's links, optionally since a timestamp. */
+  async countForUser(userId: string, since?: Date | undefined): Promise<number> {
+    const filters = [eq(urls.userId, userId)];
+    if (since !== undefined) filters.push(gte(clickEvents.clickedAt, since));
     const rows = await this.db
       .select({ count: count() })
       .from(clickEvents)
-      .where(since !== undefined ? gte(clickEvents.clickedAt, since) : undefined);
+      .innerJoin(urls, eq(clickEvents.shortCode, urls.shortCode))
+      .where(and(...filters));
     return rows[0]?.count ?? 0;
   }
 
-  /** GROUP BY one nullable column across ALL clicks (no shortCode filter). */
-  private async groupByGlobal(
+  /** GROUP BY one nullable column across one owner's clicks. */
+  private async groupByForUser(
     column: PgColumn,
     fallback: string,
+    userId: string,
   ): Promise<Record<string, number>> {
     const bucket = sql<string>`COALESCE(${column}, ${sql.raw(`'${fallback}'`)})`;
     const rows = await this.db
       .select({ key: bucket, count: count() })
       .from(clickEvents)
+      .innerJoin(urls, eq(clickEvents.shortCode, urls.shortCode))
+      .where(eq(urls.userId, userId))
       .groupBy(bucket)
       .orderBy(desc(count()));
     const out: Record<string, number> = {};
@@ -186,18 +192,18 @@ export class ClickEventRepository {
     return out;
   }
 
-  /** Aggregate breakdowns across all clicks (dashboard widgets). */
-  async getGlobalBreakdowns(): Promise<{
+  /** Aggregate breakdowns for one owner's links. */
+  async getBreakdownsForUser(userId: string): Promise<{
     countries: Record<string, number>;
     devices: Record<string, number>;
     browsers: Record<string, number>;
     referrers: Record<string, number>;
   }> {
     const [countries, devices, browsers, referrers] = await Promise.all([
-      this.groupByGlobal(clickEvents.country, 'unknown'),
-      this.groupByGlobal(clickEvents.deviceType, 'unknown'),
-      this.groupByGlobal(clickEvents.browser, 'unknown'),
-      this.groupByGlobal(clickEvents.referrer, 'direct'),
+      this.groupByForUser(clickEvents.country, 'unknown', userId),
+      this.groupByForUser(clickEvents.deviceType, 'unknown', userId),
+      this.groupByForUser(clickEvents.browser, 'unknown', userId),
+      this.groupByForUser(clickEvents.referrer, 'direct', userId),
     ]);
     return { countries, devices, browsers, referrers };
   }

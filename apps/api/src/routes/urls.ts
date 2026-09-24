@@ -8,7 +8,8 @@ export interface UrlsRouterHooks {
 
 export function createUrlsRouter(controller: UrlsController, hooks: UrlsRouterHooks = {}): Router {
   const router = Router();
-  router.post('/', controller.createUrl);
+  // NOTE: POST / (create) is mounted explicitly in app.ts — it runs under
+  // optionalAuth + a split authed/guest rate budget, unlike everything here.
   router.delete('/:shortCode', controller.deleteUrl);
   const analyticsChain: RequestHandler[] =
     hooks.analyticsMiddleware !== undefined ? [hooks.analyticsMiddleware] : [];

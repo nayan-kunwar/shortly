@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import request from 'supertest';
-import { createApp, registerFallback } from '../../src/app.js';
+import { authedClient } from '../helpers.js';
 import { ClickEventRepository } from '../../src/analytics/click-event-repository.js';
 import type { ClickEvent } from '../../src/analytics/click-event.js';
 import { closeDb, db, pool } from '../../src/db/db.js';
@@ -56,13 +55,12 @@ async function seed(code: string): Promise<void> {
 
 describe('GET /api/v1/urls/:shortCode/analytics', () => {
   it('returns the dashboard payload for a known code', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    const created = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/a' });
+    const { api } = await authedClient();
+    const created = await api.post('/api/v1/urls').send({ url: 'https://example.com/a' });
     const code = String(created.body.shortCode);
     await seed(code);
 
-    const res = await request(app).get(`/api/v1/urls/${code}/analytics`);
+    const res = await api.get(`/api/v1/urls/${code}/analytics`);
     expect(res.status).toBe(200);
     expect(res.body.shortCode).toBe(code);
     expect(res.body.totalClicks).toBe(2);
@@ -75,32 +73,30 @@ describe('GET /api/v1/urls/:shortCode/analytics', () => {
   });
 
   it('answers 404 for unknown codes', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    const res = await request(app).get('/api/v1/urls/never/analytics');
+    const { api } = await authedClient();
+    const res = await api.get('/api/v1/urls/never/analytics');
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('NotFound');
   });
 
   it('uses a separate rate-limit namespace from writes', async () => {
-    const { app } = createApp({
+    const { api } = await authedClient({
       rateLimiter: createRateLimiter({
         windowSeconds: 60,
         maxRequests: 1,
         keyPrefix: 'test-write',
       }),
     });
-    registerFallback(app);
-    const created = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/a' });
+    const created = await api.post('/api/v1/urls').send({ url: 'https://example.com/a' });
     expect(created.status).toBe(201);
     const code = String(created.body.shortCode);
 
     // Write budget exhausted…
-    const blocked = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/b' });
+    const blocked = await api.post('/api/v1/urls').send({ url: 'https://example.com/b' });
     expect(blocked.status).toBe(429);
 
     // …but analytics reads flow on their own budget.
-    const res = await request(app).get(`/api/v1/urls/${code}/analytics`);
+    const res = await api.get(`/api/v1/urls/${code}/analytics`);
     expect(res.status).toBe(200);
   });
 });

@@ -12,8 +12,29 @@ export const createdUrlSchema = z
     shortCode: z.string(),
     shortUrl: z.string().url(),
     originalUrl: z.string().url(),
+    guestId: z.string().uuid().optional(),
   })
   .openapi('CreatedUrl');
+
+/** POST /api/v1/urls/claim body + response. */
+export const claimGuestLinksSchema = z
+  .object({
+    guestId: z.string().uuid(),
+  })
+  .openapi('ClaimGuestLinks');
+
+export const claimedLinksSchema = z
+  .object({
+    claimed: z.array(z.string()),
+  })
+  .openapi('ClaimedLinks');
+
+export const badRequestErrorSchema = z
+  .object({
+    error: z.string(),
+    message: z.string(),
+  })
+  .openapi('BadRequestError');
 
 export const listedUrlSchema = z
   .object({
@@ -76,6 +97,20 @@ export const readinessSchema = z
   })
   .openapi('Readiness');
 
+export const authUserSchema = z
+  .object({
+    id: z.string().uuid(),
+    email: z.string().email(),
+  })
+  .openapi('AuthUser');
+
+export const authSessionSchema = z
+  .object({
+    token: z.string(),
+    user: authUserSchema,
+  })
+  .openapi('AuthSession');
+
 export const shortCodeParamSchema = z
   .object({ shortCode: z.string().min(1).max(64) })
   .openapi('ShortCodeParams');
@@ -89,6 +124,7 @@ export const validationErrorSchema = errorEnvelope('ValidationError', {
 });
 export const conflictErrorSchema = errorEnvelope('ConflictError', { field: z.string() });
 export const notFoundErrorSchema = errorEnvelope('NotFoundError');
+export const unauthorizedErrorSchema = errorEnvelope('UnauthorizedError');
 export const goneErrorSchema = errorEnvelope('GoneError', { reason: z.string() });
 export const rateLimitErrorSchema = errorEnvelope('TooManyRequestsError');
 export const unavailableErrorSchema = errorEnvelope('ServiceUnavailableError');

@@ -7,7 +7,7 @@ hold the per-decision reasoning; this file is the map over them.
 
 | #   | Requirement                                                   | Status                       |
 | --- | ------------------------------------------------------------- | ---------------------------- |
-| F1  | Create short URLs (`POST /api/v1/urls`)                       | M2, live                     |
+| F1  | Create short URLs (`POST /api/v1/urls`, authenticated)    | M2 + auth, live              |
 | F2  | Redirect (`GET /:shortCode`, 302)                             | M4, live                     |
 | F3  | Custom aliases (validated, reserved, race-safe)               | M6, live                     |
 | F4  | Expiration (`expiresAt`, lazy) + deactivation (`DELETE`, 410) | M2/M4/M7, live               |
@@ -18,8 +18,12 @@ hold the per-decision reasoning; this file is the map over them.
 | F9  | Machine-readable API contract                                 | M19, live                    |
 | F10 | Horizontal scaling behind a load balancer                     | M17, proven live             |
 
-Out of scope by design: user accounts/auth, custom domains, link editing
-beyond deactivation (see §7).
+Accounts are email and password. Sessions are opaque bearer tokens stored as SHA-256 hashes in PostgreSQL, so logout deletes the row and Redis is not required for auth. Management, analytics, and stats are limited to `urls.user_id` of the caller. `GET /:shortCode` stays public and returns only a redirect.
+
+Rows created before accounts have `user_id` NULL. They keep their short codes and still redirect. They do not appear in any user's list, and delete, details, and analytics answer 404 for them. Nothing in the product assigns those rows to a user.
+
+Out of scope: custom domains, link editing
+beyond deactivation (see §7), password reset, and OAuth.
 
 ## 2. Non-functional requirements
 
@@ -121,8 +125,12 @@ mirrors contracts it never owns.
 - **`urls`** — one row per shortened link. `BIGSERIAL` id (internal,
   Base62-encoded for codes); `short_code` + `custom_alias` unique (the
   redirect and alias indexes); `is_active` soft-delete flag; `expires_at`
-  nullable (NULL = forever); `updated_at` trigger. No `user_id` FK (no
-  users). Full rationale: `docs/milestone-01-postgresql.md`.
+  nullable (NULL = forever); `updated_at` trigger. `user_id` references
+  `users` and is NULL for links created before accounts existed — those
+  rows stay publicly resolvable and are not manageable.
+- **`users`** — email (unique, stored lowercase) and scrypt `password_hash`.
+- **`sessions`** — `token_hash` unique, `expires_at`. The raw bearer token
+  is returned once and never stored.
 - **`outbox_events`** — durable publish receipts (`event_id` idempotency
   key, `payload` JSONB, `published_at` NULL = pending, attempt/backoff
   columns, partial index on pending). `docs/milestone-10-outbox.md`.

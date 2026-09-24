@@ -15,6 +15,7 @@ vi.mock('../../src/utils/base62.js', () => ({
 import { UrlService } from '../../src/services/url.service.js';
 import { generateRandomCode } from '../../src/utils/base62.js';
 
+const USER_ID = '11111111-1111-4111-8111-111111111111';
 const NOW = new Date('2025-01-15T10:00:00Z');
 
 function mockRepo(overrides: { create?: ReturnType<typeof vi.fn> } = {}) {
@@ -56,7 +57,7 @@ function createdRow(shortCode: string) {
     shortCode,
     originalUrl: 'https://example.com',
     customAlias: null,
-    userId: null,
+    userId: USER_ID,
     createdAt: NOW,
     updatedAt: NOW,
     expiresAt: null,
@@ -82,7 +83,7 @@ describe('UrlService.createShortUrl — collision retry', () => {
       mockAnalytics(),
     );
 
-    const result = await service.createShortUrl({ url: 'https://example.com' });
+    const result = await service.createShortUrl({ url: 'https://example.com' }, { userId: USER_ID });
 
     expect(result.shortCode).toBe('unique7x');
     expect(result.shortUrl).toBe('http://localhost:3000/unique7x');
@@ -92,12 +93,16 @@ describe('UrlService.createShortUrl — collision retry', () => {
       originalUrl: 'https://example.com',
       customAlias: null,
       expiresAt: null,
+      userId: USER_ID,
+      guestId: null,
     });
     expect(createMock).toHaveBeenNthCalledWith(2, {
       shortCode: 'unique7x',
       originalUrl: 'https://example.com',
       customAlias: null,
       expiresAt: null,
+      userId: USER_ID,
+      guestId: null,
     });
     expect(generateRandomCode).toHaveBeenCalledWith(7);
   });
@@ -112,7 +117,7 @@ describe('UrlService.createShortUrl — collision retry', () => {
       mockAnalytics(),
     );
 
-    await expect(service.createShortUrl({ url: 'https://example.com' })).rejects.toThrow(
+    await expect(service.createShortUrl({ url: 'https://example.com' }, { userId: USER_ID })).rejects.toThrow(
       'Failed to generate a unique short code after 5 attempts',
     );
     expect(createMock).toHaveBeenCalledTimes(5);
@@ -129,7 +134,7 @@ describe('UrlService.createShortUrl — collision retry', () => {
     );
 
     await expect(
-      service.createShortUrl({ url: 'https://example.com', customAlias: 'taken' }),
+      service.createShortUrl({ url: 'https://example.com', customAlias: 'taken' }, { userId: USER_ID }),
     ).rejects.toThrow(ConflictError);
     expect(createMock).toHaveBeenCalledTimes(1);
   });
@@ -144,7 +149,7 @@ describe('UrlService.createShortUrl — collision retry', () => {
       mockAnalytics(),
     );
 
-    await expect(service.createShortUrl({ url: 'https://example.com' })).rejects.toThrow(
+    await expect(service.createShortUrl({ url: 'https://example.com' }, { userId: USER_ID })).rejects.toThrow(
       'DB connection lost',
     );
     expect(createMock).toHaveBeenCalledTimes(1);
@@ -156,7 +161,7 @@ describe('UrlService.createShortUrl — collision retry', () => {
 
     const service = new UrlService(mockRepo({ create: createMock }), cache, mockEmitter(), mockAnalytics());
 
-    await service.createShortUrl({ url: 'https://example.com' });
+    await service.createShortUrl({ url: 'https://example.com' }, { userId: USER_ID });
 
     expect(cache.invalidate).toHaveBeenCalledWith('unique7x');
   });

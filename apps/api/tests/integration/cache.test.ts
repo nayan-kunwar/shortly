@@ -8,6 +8,7 @@ import { runMigrations } from '../../src/db/migrate.js';
 import { GoneError } from '../../src/errors/gone-error.js';
 import { NotFoundError } from '../../src/errors/not-found-error.js';
 import { closeRedis, createRedisClient, getRedis } from '../../src/redis/client.js';
+import { insertUser } from '../helpers.js';
 import { waitForRedis } from '../redis-ready.js';
 import { UrlRepository } from '../../src/repositories/url.repository.js';
 import { UrlService } from '../../src/services/url.service.js';
@@ -21,6 +22,8 @@ const service = new UrlService(
   new ClickEventRepository(db),
 );
 
+let userId: string;
+
 beforeAll(async () => {
   await runMigrations(pool);
   await waitForRedis();
@@ -33,6 +36,7 @@ beforeEach(async () => {
   await pool.query('TRUNCATE urls RESTART IDENTITY');
   await getRedis().flushdb();
   resetCacheMetrics();
+  userId = await insertUser();
 });
 
 afterAll(async () => {
@@ -42,7 +46,7 @@ afterAll(async () => {
 
 describe('redirect cache (cache-aside)', () => {
   it('misses once, populates, then hits', async () => {
-    const created = await service.createShortUrl({ url: 'https://example.com/cached' });
+    const created = await service.createShortUrl({ url: 'https://example.com/cached' }, { userId });
 
     const first = await service.resolveUrl(created.shortCode);
     expect(first.originalUrl).toBe('https://example.com/cached');
@@ -54,7 +58,7 @@ describe('redirect cache (cache-aside)', () => {
   });
 
   it('serves hits without the database', async () => {
-    const created = await service.createShortUrl({ url: 'https://example.com/nodb' });
+    const created = await service.createShortUrl({ url: 'https://example.com/nodb' }, { userId });
     await service.resolveUrl(created.shortCode);
     expect(cacheMetrics.misses).toBe(1);
 
@@ -66,9 +70,9 @@ describe('redirect cache (cache-aside)', () => {
   });
 
   it('invalidates on deactivation (no stale 302)', async () => {
-    const created = await service.createShortUrl({ url: 'https://example.com/byebye' });
+    const created = await service.createShortUrl({ url: 'https://example.com/byebye' }, { userId });
     await service.resolveUrl(created.shortCode);
-    await service.deactivateUrl(created.shortCode);
+    await service.deactivateUrl(created.shortCode, userId);
 
     const err = await service.resolveUrl(created.shortCode).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(GoneError);
@@ -80,7 +84,7 @@ describe('redirect cache (cache-aside)', () => {
     const miss = await service.resolveUrl('freshalias').catch((e: unknown) => e);
     expect(miss).toBeInstanceOf(NotFoundError);
 
-    await service.createShortUrl({ url: 'https://example.com/now', customAlias: 'freshalias' });
+    await service.createShortUrl({ url: 'https://example.com/now', customAlias: 'freshalias' }, { userId });
     const found = await service.resolveUrl('freshalias');
     expect(found.originalUrl).toBe('https://example.com/now');
   });
@@ -100,7 +104,7 @@ describe('redirect cache (cache-aside)', () => {
   });
 
   it('falls back to PostgreSQL when Redis is down (fail-open)', async () => {
-    const created = await service.createShortUrl({ url: 'https://example.com/fallback' });
+    const created = await service.createShortUrl({ url: 'https://example.com/fallback' }, { userId });
     const broken = createRedisClient('redis://localhost:6399');
     try {
       const degraded = new UrlService(

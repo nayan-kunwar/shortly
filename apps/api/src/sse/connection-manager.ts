@@ -8,6 +8,7 @@ import { sseActiveConnections, sseEventsSent } from './sse-metrics.js';
 export interface SseConnection {
   id: string;
   shortCode: string;
+  userId: string;
   res: Response;
   createdAt: number;
 }
@@ -75,11 +76,16 @@ export class SseConnectionManager {
     log('info', 'SSE connection manager initialized');
   }
 
+  /** Rejects before the stream opens so 401/404 stay JSON. */
+  async assertOwned(shortCode: string, userId: string): Promise<void> {
+    await this.service.assertOwned(shortCode, userId);
+  }
+
   /**
    * Register a new SSE connection. Sends initial `connected` event.
    * Returns the connection ID (used for cleanup on client disconnect).
    */
-  addConnection(shortCode: string, res: Response): string {
+  addConnection(shortCode: string, res: Response, userId: string): string {
     if (this.connections.size >= env.SSE_MAX_CONNECTIONS) {
       log('warn', 'SSE: max connections reached', { limit: env.SSE_MAX_CONNECTIONS });
       res.status(503).json({ error: 'ServiceUnavailable', message: 'Too many SSE connections' });
@@ -87,7 +93,7 @@ export class SseConnectionManager {
     }
 
     const id = `sse-${++this.idCounter}-${Date.now()}`;
-    const connection: SseConnection = { id, shortCode, res, createdAt: Date.now() };
+    const connection: SseConnection = { id, shortCode, userId, res, createdAt: Date.now() };
     this.connections.set(id, connection);
 
     const channel = `analytics:click:${shortCode}`;
@@ -142,7 +148,11 @@ export class SseConnectionManager {
     if (subs === undefined || subs.size === 0) return;
 
     try {
-      const stats = await this.service.getUrlAnalytics(shortCode);
+      const ownerId = [...subs]
+        .map((id) => this.connections.get(id)?.userId)
+        .find((id): id is string => id !== undefined);
+      if (ownerId === undefined) return;
+      const stats = await this.service.getUrlAnalytics(shortCode, ownerId);
       for (const connId of subs) {
         this.sendEvent(connId, 'analytics', stats);
       }
