@@ -1,7 +1,5 @@
 import type { Channel, ChannelModel } from 'amqplib';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import request from 'supertest';
-import { createApp, registerFallback } from '../../src/app.js';
 import { closeDb, db, pool } from '../../src/db/db.js';
 import { runMigrations } from '../../src/db/migrate.js';
 import { OutboxRepository } from '../../src/outbox/outbox-repository.js';
@@ -9,7 +7,7 @@ import { assertTopology, CLICKS_QUEUE, connectRabbitMQ } from '../../src/rabbitm
 import { closeRedis, getRedis } from '../../src/redis/client.js';
 import { publishBatchOnce } from '../../src/workers/publisher.js';
 import { startAnalyticsWorker, type WorkerHandle } from '../../src/workers/analytics-worker.js';
-import { waitFor } from '../helpers.js';
+import { authedClient, waitFor } from '../helpers.js';
 import { waitForRedis } from '../redis-ready.js';
 
 // The whole system in one test: HTTP → PG → outbox → broker → worker → analytics.
@@ -55,18 +53,17 @@ async function clickCount(code: string): Promise<number> {
 
 describe('full pipeline e2e', () => {
   it('create → redirect → outbox → publish → consume → analytics API', async () => {
-    const { app } = createApp();
-    registerFallback(app);
+    const { api } = await authedClient();
 
     // 1. Create through the API (validates + persists + invalidates).
-    const created = await request(app)
+    const created = await api
       .post('/api/v1/urls')
       .send({ url: 'https://example.com/e2e-pipeline' });
     expect(created.status).toBe(201);
     const code = String(created.body.shortCode);
 
     // 2. Redirect resolves (and emits the click event fire-and-forget).
-    const redirect = await request(app).get(`/${code}`).redirects(0);
+    const redirect = await api.get(`/${code}`).redirects(0);
     expect(redirect.status).toBe(302);
 
     // 3. Outbox received the event without blocking the redirect.
@@ -81,11 +78,11 @@ describe('full pipeline e2e', () => {
     await waitFor(async () => (await clickCount(code)) === 1);
 
     // 6. Analytics API serves it; metrics observed the redirect.
-    const analytics = await request(app).get(`/api/v1/urls/${code}/analytics`);
+    const analytics = await api.get(`/api/v1/urls/${code}/analytics`);
     expect(analytics.status).toBe(200);
     expect(analytics.body.totalClicks).toBe(1);
 
-    const metrics = await request(app).get('/metrics');
+    const metrics = await api.get('/metrics');
     expect(metrics.text).toContain('redirect_requests_total 1');
   }, 60_000);
 });

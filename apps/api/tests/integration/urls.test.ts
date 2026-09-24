@@ -1,9 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import request from 'supertest';
-import { createApp, registerFallback } from '../../src/app.js';
 import { closeDb, pool } from '../../src/db/db.js';
 import { runMigrations } from '../../src/db/migrate.js';
 import { closeRedis, getRedis } from '../../src/redis/client.js';
+import { authedClient } from '../helpers.js';
 import { waitForRedis } from '../redis-ready.js';
 
 // Needs real PostgreSQL + Redis: docker compose up -d postgres redis && npm run db:migrate
@@ -25,9 +24,8 @@ afterAll(async () => {
 
 describe('POST /api/v1/urls', () => {
   it('creates a short URL and answers 201 with shortCode/shortUrl/originalUrl', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    const res = await request(app)
+    const { api } = await authedClient();
+    const res = await api
       .post('/api/v1/urls')
       .send({ url: 'https://example.com/very/long/url' });
 
@@ -40,19 +38,17 @@ describe('POST /api/v1/urls', () => {
   });
 
   it('issues a distinct code per URL', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    const first = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/1' });
-    const second = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/2' });
+    const { api } = await authedClient();
+    const first = await api.post('/api/v1/urls').send({ url: 'https://example.com/1' });
+    const second = await api.post('/api/v1/urls').send({ url: 'https://example.com/2' });
     expect(first.status).toBe(201);
     expect(second.status).toBe(201);
     expect(second.body.shortCode).not.toBe(first.body.shortCode);
   });
 
   it('accepts a custom alias and future expiry', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    const res = await request(app)
+    const { api } = await authedClient();
+    const res = await api
       .post('/api/v1/urls')
       .send({
         url: 'https://github.com/',
@@ -66,31 +62,28 @@ describe('POST /api/v1/urls', () => {
   });
 
   it('rejects non-http(s) URLs with 400', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    const res = await request(app).post('/api/v1/urls').send({ url: 'ftp://example.com/x' });
+    const { api } = await authedClient();
+    const res = await api.post('/api/v1/urls').send({ url: 'ftp://example.com/x' });
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('ValidationError');
   });
 
   it('rejects garbage, missing, and over-long URLs with 400', async () => {
-    const { app } = createApp();
-    registerFallback(app);
+    const { api } = await authedClient();
     for (const body of [
       { url: 'not-a-url' },
       {},
       { url: `https://example.com/${'a'.repeat(2048)}` },
     ]) {
-      const res = await request(app).post('/api/v1/urls').send(body);
+      const res = await api.post('/api/v1/urls').send(body);
       expect(res.status).toBe(400);
       expect(res.body.error).toBe('ValidationError');
     }
   });
 
   it('rejects a past expiresAt with 400', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    const res = await request(app)
+    const { api } = await authedClient();
+    const res = await api
       .post('/api/v1/urls')
       .send({
         url: 'https://example.com/x',
@@ -100,14 +93,13 @@ describe('POST /api/v1/urls', () => {
   });
 
   it('answers 409 on duplicate custom alias', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    const first = await request(app)
+    const { api } = await authedClient();
+    const first = await api
       .post('/api/v1/urls')
       .send({ url: 'https://example.com/a', customAlias: 'taken' });
     expect(first.status).toBe(201);
 
-    const second = await request(app)
+    const second = await api
       .post('/api/v1/urls')
       .send({ url: 'https://example.com/b', customAlias: 'taken' });
     expect(second.status).toBe(409);
@@ -116,10 +108,9 @@ describe('POST /api/v1/urls', () => {
   });
 
   it('rejects reserved and too-short aliases with 400', async () => {
-    const { app } = createApp();
-    registerFallback(app);
+    const { api } = await authedClient();
     for (const customAlias of ['health', 'HEALTH', 'metrics', 'ab']) {
-      const res = await request(app)
+      const res = await api
         .post('/api/v1/urls')
         .send({ url: 'https://example.com/x', customAlias });
       expect(res.status).toBe(400);
@@ -131,11 +122,10 @@ describe('POST /api/v1/urls', () => {
     // Ten requests race the same alias. There is no check-then-insert
     // anywhere in the path — the unique constraint arbitrates, losers get
     // 23505 → 409. If application-level checking existed, two could win.
-    const { app } = createApp();
-    registerFallback(app);
+    const { api } = await authedClient();
     const results = await Promise.all(
       Array.from({ length: 10 }, (_, i) =>
-        request(app)
+        api
           .post('/api/v1/urls')
           .send({ url: `https://example.com/race/${String(i)}`, customAlias: 'race-alias' }),
       ),
@@ -145,11 +135,10 @@ describe('POST /api/v1/urls', () => {
   });
 
   it('generates unique 7-character codes for multiple URLs', async () => {
-    const { app } = createApp();
-    registerFallback(app);
+    const { api } = await authedClient();
     const codes = new Set<string>();
     for (let i = 0; i < 20; i++) {
-      const res = await request(app)
+      const res = await api
         .post('/api/v1/urls')
         .send({ url: `https://example.com/unique-test/${String(i)}` });
       expect(res.status).toBe(201);
@@ -160,12 +149,11 @@ describe('POST /api/v1/urls', () => {
   });
 
   it('resolves a pre-existing numeric short code via direct DB insert', async () => {
-    const { app } = createApp();
-    registerFallback(app);
+    const { api } = await authedClient();
     await pool.query(
       `INSERT INTO urls (short_code, original_url) VALUES ('6', 'https://example.com/legacy')`,
     );
-    const res = await request(app).get('/6').redirects(0);
+    const res = await api.get('/6').redirects(0);
     expect(res.status).toBe(302);
     expect(res.headers['location']).toBe('https://example.com/legacy');
   });
@@ -173,49 +161,46 @@ describe('POST /api/v1/urls', () => {
 
 describe('DELETE /api/v1/urls/:shortCode', () => {
   it('deactivates and the redirect becomes 410 (cache invalidated)', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    const created = await request(app)
+    const { api } = await authedClient();
+    const created = await api
       .post('/api/v1/urls')
       .send({ url: 'https://example.com/doomed' });
     expect(created.status).toBe(201);
     const code = String(created.body.shortCode);
 
     // Populate the cache first: without invalidation this GET would stay 302.
-    const before = await request(app).get(`/${code}`).redirects(0);
+    const before = await api.get(`/${code}`).redirects(0);
     expect(before.status).toBe(302);
 
-    const deleted = await request(app).delete(`/api/v1/urls/${code}`);
+    const deleted = await api.delete(`/api/v1/urls/${code}`);
     expect(deleted.status).toBe(200);
     expect(deleted.body).toMatchObject({ shortCode: code, isActive: false });
 
-    const after = await request(app).get(`/${code}`).redirects(0);
+    const after = await api.get(`/${code}`).redirects(0);
     expect(after.status).toBe(410);
     expect(after.body.reason).toBe('deactivated');
   });
 
   it('answers 404 for unknown codes', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    const res = await request(app).delete('/api/v1/urls/never-existed');
+    const { api } = await authedClient();
+    const res = await api.delete('/api/v1/urls/never-existed');
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('NotFound');
   });
 
   it('is idempotent: deleting twice still answers 200 and stays 410', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    const created = await request(app)
+    const { api } = await authedClient();
+    const created = await api
       .post('/api/v1/urls')
       .send({ url: 'https://example.com/twice' });
     const code = String(created.body.shortCode);
 
-    const first = await request(app).delete(`/api/v1/urls/${code}`);
-    const second = await request(app).delete(`/api/v1/urls/${code}`);
+    const first = await api.delete(`/api/v1/urls/${code}`);
+    const second = await api.delete(`/api/v1/urls/${code}`);
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
 
-    const redirect = await request(app).get(`/${code}`).redirects(0);
+    const redirect = await api.get(`/${code}`).redirects(0);
     expect(redirect.status).toBe(410);
   });
 });

@@ -3,6 +3,8 @@ import type { CachedEntry, UrlCache } from '../cache/url-cache.js';
 import { buildClickEvent, type ClickContext, type ClickEmitter } from '../analytics/click-event.js';
 import { recordAnalyticsEventCreated } from '../analytics/analytics-metrics.js';
 import type { ClickEventRepository, ClickStats } from '../analytics/click-event-repository.js';
+import type { AuthRepository } from '../auth/auth.repository.js';
+import { BadRequestError } from '../errors/bad-request-error.js';
 import { env } from '../config/env.js';
 import { ConflictError } from '../errors/conflict-error.js';
 import { GoneError } from '../errors/gone-error.js';
@@ -17,7 +19,16 @@ export interface CreatedUrl {
   shortCode: string;
   shortUrl: string;
   originalUrl: string;
+  /** Present only when a guest identity was minted for this create. */
+  guestId?: string;
 }
+
+/**
+ * Who is creating: an account, or an anonymous guest anchor.
+ * Guests are restricted (no custom aliases) at the service layer so every
+ * entry point — HTTP today, anything else tomorrow — enforces the same rule.
+ */
+export type CreateIdentity = { userId: string } | { guestId: string | null };
 
 export interface ListedUrlResponse {
   shortCode: string;
@@ -49,14 +60,28 @@ export class UrlService {
     private readonly cache: UrlCache,
     private readonly emitter: ClickEmitter,
     private readonly analytics: ClickEventRepository,
+    /**
+     * Guest issuer for anonymous creates. Optional so unit tests can
+     * construct the service without identity infrastructure; production
+     * always wires it (guest creates throw without it).
+     */
+    private readonly guests?: AuthRepository,
   ) {}
 
   /**
    * Create a shortened URL.
-   * - Custom alias: single attempt; a 23505 becomes ConflictError → 409.
+   * - Account: full feature set (custom alias with 409 on conflict).
+   * - Guest: generated codes only — custom aliases need an account (this
+   *   kills alias squatting and doubles as the signup nudge). A missing
+   *   guest anchor mints one (returned so the client can store it); an
+   *   unknown anchor mints a replacement (stale storage self-heals).
    * - Generated code: random 7-char Base62 with retry on UNIQUE violation.
    */
-  async createShortUrl(input: CreateUrlRequest): Promise<CreatedUrl> {
+  async createShortUrl(input: CreateUrlRequest, identity: CreateIdentity): Promise<CreatedUrl> {
+    if (!('userId' in identity)) {
+      return this.createGuestUrl(input, identity.guestId);
+    }
+    const userId = identity.userId;
     const customAlias = input.customAlias ?? null;
     const expiresAt = input.expiresAt != null ? new Date(input.expiresAt) : null;
 
@@ -67,6 +92,8 @@ export class UrlService {
           originalUrl: input.url,
           customAlias,
           expiresAt,
+          userId,
+          guestId: null,
         });
         // A negative entry for this alias may exist from an earlier miss.
         await this.cache.invalidate(customAlias);
@@ -91,6 +118,8 @@ export class UrlService {
           originalUrl: input.url,
           customAlias: null,
           expiresAt,
+          userId,
+          guestId: null,
         });
         await this.cache.invalidate(created.shortCode);
         return this.toResponse(created.shortCode, created.originalUrl);
@@ -106,17 +135,86 @@ export class UrlService {
     );
   }
 
+  /**
+   * Anonymous create: generated code stamped with a guest anchor.
+   * Returns the anchor when one was minted so the client can store it.
+   */
+  private async createGuestUrl(input: CreateUrlRequest, guestId: string | null): Promise<CreatedUrl> {
+    if (input.customAlias != null) {
+      throw new BadRequestError('Sign in to use custom aliases', 'GUEST_ALIAS_FORBIDDEN');
+    }
+    if (this.guests === undefined) {
+      throw new Error('Guest creates require a guest issuer');
+    }
+    let anchor = guestId;
+    let minted = false;
+    if (anchor === null || !(await this.guests.guestExists(anchor))) {
+      anchor = await this.guests.createGuest();
+      minted = true;
+    }
+    const expiresAt = input.expiresAt != null ? new Date(input.expiresAt) : null;
+
+    const SHORT_CODE_LENGTH = 7;
+    const MAX_RETRIES = 5;
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      const code = generateRandomCode(SHORT_CODE_LENGTH);
+      try {
+        const created = await this.repo.create({
+          shortCode: code,
+          originalUrl: input.url,
+          customAlias: null,
+          expiresAt,
+          userId: null,
+          guestId: anchor,
+        });
+        await this.cache.invalidate(created.shortCode);
+        const response = this.toResponse(created.shortCode, created.originalUrl);
+        return minted ? { ...response, guestId: anchor } : response;
+      } catch (err) {
+        if (err instanceof ConflictError && err.field === 'shortCode') {
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw new Error(
+      `Failed to generate a unique short code after ${String(MAX_RETRIES)} attempts`,
+    );
+  }
+
+  /**
+   * Move a guest's unclaimed links onto an account. Idempotent: claiming
+   * twice (or claiming an unknown/empty anchor) returns what moved, which
+   * may be nothing. The guest anchor is retired afterwards either way.
+   */
+  async claimGuestLinks(guestId: string, userId: string): Promise<string[]> {
+    const claimed = await this.repo.claimGuestLinks(guestId, userId);
+    if (this.guests !== undefined) {
+      await this.guests.deleteGuest(guestId);
+    }
+    return claimed;
+  }
+
   /** Service owns every mutation so invalidation cannot be forgotten by callers. */
-  async deactivateUrl(shortCode: string): Promise<UrlRecord | null> {
-    const row = await this.repo.deactivate(shortCode);
-    await this.cache.invalidate(shortCode);
+  async deactivateUrl(shortCode: string, userId: string): Promise<UrlRecord | null> {
+    const row = await this.repo.deactivate(shortCode, userId);
+    if (row !== null) await this.cache.invalidate(shortCode);
     return row;
   }
 
-  async updateUrl(shortCode: string, patch: UpdateUrlPatch): Promise<UrlRecord | null> {
-    const row = await this.repo.update(shortCode, patch);
-    await this.cache.invalidate(shortCode);
+  async updateUrl(shortCode: string, patch: UpdateUrlPatch, userId: string): Promise<UrlRecord | null> {
+    const row = await this.repo.update(shortCode, patch, userId);
+    if (row !== null) await this.cache.invalidate(shortCode);
     return row;
+  }
+
+  /** Private-plane existence check. Unknown and unowned codes are the same 404. */
+  async assertOwned(shortCode: string, userId: string): Promise<void> {
+    const record = await this.repo.findOwned(shortCode, userId);
+    if (record === null) {
+      throw new NotFoundError(`Unknown short code: ${shortCode}`);
+    }
   }
 
   /**
@@ -124,8 +222,8 @@ export class UrlService {
    * the URL itself is unknown (M12 returns zeros without knowing URLs).
    * No freshness guarantee documented beyond eventual consistency (M9–M11).
    */
-  async getUrlAnalytics(shortCode: string): Promise<UrlAnalytics> {
-    const record = await this.repo.findByShortCode(shortCode);
+  async getUrlAnalytics(shortCode: string, userId: string): Promise<UrlAnalytics> {
+    const record = await this.repo.findOwned(shortCode, userId);
     if (record === null) {
       throw new NotFoundError(`Unknown short code: ${shortCode}`);
     }
@@ -138,22 +236,22 @@ export class UrlService {
    * indexed flags. "Today" is a UTC day boundary — documented, timezone-
    * free, and consistent across instances regardless of server locale.
    */
-  async getGlobalStats(now: Date = new Date()): Promise<GlobalStats> {
+  async getGlobalStats(userId: string, now: Date = new Date()): Promise<GlobalStats> {
     const startOfTodayUtc = new Date(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
     );
     const [totalUrls, activeUrls, totalClicks, clicksToday] = await Promise.all([
-      this.repo.countUrls(false),
-      this.repo.countUrls(true),
-      this.analytics.countAll(),
-      this.analytics.countAll(startOfTodayUtc),
+      this.repo.countUrls(false, userId),
+      this.repo.countUrls(true, userId),
+      this.analytics.countForUser(userId),
+      this.analytics.countForUser(userId, startOfTodayUtc),
     ]);
     return { totalUrls, activeUrls, totalClicks, clicksToday };
   }
 
   /** Dashboard breakdowns: countries, devices, browsers, referrers across all clicks. */
-  async getGlobalBreakdowns() {
-    return this.analytics.getGlobalBreakdowns();
+  async getGlobalBreakdowns(userId: string) {
+    return this.analytics.getBreakdownsForUser(userId);
   }
 
   /**
@@ -161,11 +259,13 @@ export class UrlService {
    */
   async listUrls(
     query: ListUrlsQuery,
+    userId: string,
   ): Promise<{ items: ListedUrlResponse[]; nextCursor: string | null }> {
     const result = await this.repo.listUrls({
       limit: query.limit,
       cursorId: query.cursor,
       search: query.search,
+      userId,
     });
     return {
       items: result.items.map((item) => this.toListed(item)),
@@ -174,8 +274,8 @@ export class UrlService {
   }
 
   /** Single-URL details with lifetime clicks. 404 when unknown. */
-  async getUrlDetails(shortCode: string): Promise<UrlDetails> {
-    const record = await this.repo.findByShortCode(shortCode);
+  async getUrlDetails(shortCode: string, userId: string): Promise<UrlDetails> {
+    const record = await this.repo.findOwned(shortCode, userId);
     if (record === null) {
       throw new NotFoundError(`Unknown short code: ${shortCode}`);
     }

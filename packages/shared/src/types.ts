@@ -9,6 +9,8 @@ export interface CreatedUrl {
   shortCode: string;
   shortUrl: string;
   originalUrl: string;
+  /** Present only when the server minted a guest anchor for this create. */
+  guestId?: string | undefined;
 }
 
 /** POST /api/v1/urls request body (frontend → backend). */

@@ -11,6 +11,7 @@ import {
   urlCreationTotal,
 } from '../../src/observability/http-metrics.js';
 import { closeRedis, getRedis } from '../../src/redis/client.js';
+import { authedClient } from '../helpers.js';
 import { waitForRedis } from '../redis-ready.js';
 
 // Needs real PostgreSQL + Redis + RabbitMQ (ready checks all three).
@@ -54,14 +55,13 @@ describe('observability', () => {
   });
 
   it('counts requests, creations, and redirects with route-pattern labels', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    const created = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/m' });
+    const { api } = await authedClient();
+    const created = await api.post('/api/v1/urls').send({ url: 'https://example.com/m' });
     const code = String(created.body.shortCode);
-    await request(app).get(`/${code}`).redirects(0);
-    await request(app).get(`/${code}`).redirects(0);
+    await api.get(`/${code}`).redirects(0);
+    await api.get(`/${code}`).redirects(0);
 
-    const metrics = await request(app).get('/metrics');
+    const metrics = await api.get('/metrics');
     expect(metrics.status).toBe(200);
     expect(metrics.headers['content-type']).toMatch(/text\/plain/);
     const body = String(metrics.text);

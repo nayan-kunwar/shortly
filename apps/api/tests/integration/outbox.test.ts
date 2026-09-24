@@ -1,8 +1,6 @@
 import type { Channel, ChannelModel } from 'amqplib';
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import request from 'supertest';
-import { createApp, registerFallback } from '../../src/app.js';
 import { buildClickEvent } from '../../src/analytics/click-event.js';
 import { closeDb, db, pool } from '../../src/db/db.js';
 import { runMigrations } from '../../src/db/migrate.js';
@@ -10,7 +8,7 @@ import { OutboxRepository } from '../../src/outbox/outbox-repository.js';
 import { assertTopology, CLICKS_QUEUE, connectRabbitMQ } from '../../src/rabbitmq/connection.js';
 import { closeRedis, getRedis } from '../../src/redis/client.js';
 import { publishBatchOnce } from '../../src/workers/publisher.js';
-import { waitFor } from '../helpers.js';
+import { authedClient, waitFor } from '../helpers.js';
 import { waitForRedis } from '../redis-ready.js';
 
 // Needs PostgreSQL + Redis + RabbitMQ:
@@ -90,12 +88,11 @@ describe('outbox repository', () => {
 
 describe('outbox emitter wiring', () => {
   it('persists an outbox row on redirect (fire-and-forget)', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    const created = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/e' });
+    const { api } = await authedClient();
+    const created = await api.post('/api/v1/urls').send({ url: 'https://example.com/e' });
     const code = String(created.body.shortCode);
 
-    await request(app).get(`/${code}`).redirects(0);
+    await api.get(`/${code}`).redirects(0);
     await waitFor(async () => (await outbox.countPending()) === 1);
   });
 });

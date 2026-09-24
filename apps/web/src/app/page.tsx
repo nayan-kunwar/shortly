@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useMemo } from 'react';
 import {
   Zap,
   BarChart3,
@@ -15,8 +16,37 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { CreateUrlForm } from '../features/urls/components/create-url-form';
+import { useAuth } from '../features/auth/auth-context';
 import { useStats } from '../features/stats/hooks/use-stats';
 import { Logo } from '../components/ui/logo';
+import dynamic from 'next/dynamic';
+import type { DayBucket } from '../features/analytics/types';
+
+/* ------------------------------------------------------------------ */
+/*  Product preview chart: the REAL ClicksChart, client-only.          */
+/* ------------------------------------------------------------------ */
+// Same component as /urls/[code]/analytics, so the preview can never drift
+// from the product. ssr:false keeps Recharts out of the landing's first
+// paint; sample buckets keep date labels fresh without SSR mismatch.
+const PreviewChart = dynamic(
+  () => import('../features/analytics/components/clicks-chart').then((mod) => mod.ClicksChart),
+  {
+    ssr: false,
+    loading: () => <div className="h-64 w-full animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />,
+  },
+);
+
+// Illustrative 14-day rising curve (same shape as the demo dataset).
+const PREVIEW_COUNTS = [2, 3, 2, 4, 3, 5, 4, 6, 5, 7, 6, 8, 7, 9];
+
+function previewBuckets(): DayBucket[] {
+  const today = new Date();
+  return PREVIEW_COUNTS.map((count, i) => {
+    const day = new Date(today);
+    day.setDate(day.getDate() - (PREVIEW_COUNTS.length - 1 - i));
+    return { date: day.toISOString().slice(0, 10), count };
+  });
+}
 
 /* ------------------------------------------------------------------ */
 /*  Feature cards                                                      */
@@ -88,6 +118,12 @@ function Section({
 /* ------------------------------------------------------------------ */
 export default function HomePage() {
   const stats = useStats();
+  const { user, isLoading } = useAuth();
+  // Sample buckets computed once: stable identity across stats refetches so
+  // the preview chart never re-animates, labels stay fresh per mount.
+  const previewData = useMemo(() => previewBuckets(), []);
+  // Guests funnel into signup; signed-in users scroll to their live form.
+  const createHref = user === null && !isLoading ? '/register' : '#shorten';
 
   return (
     <div className="overflow-hidden">
@@ -126,7 +162,7 @@ export default function HomePage() {
           {/* CTA row */}
           <div className="animate-fade-in-up animation-delay-300 mt-8 flex flex-wrap items-center justify-center gap-3">
             <a
-              href="#shorten"
+              href={createHref}
               className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:bg-brand-600 hover:shadow-xl"
             >
               Create your short link
@@ -172,7 +208,16 @@ export default function HomePage() {
                 </p>
               </div>
             </div>
-            <CreateUrlForm />
+            {user === null && !isLoading ? (
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                <Link href="/register" className="font-medium text-brand-600 hover:underline">
+                  Create an account
+                </Link>{' '}
+                to shorten links and see their analytics.
+              </p>
+            ) : (
+              <CreateUrlForm />
+            )}
           </div>
         </div>
       </Section>
@@ -278,27 +323,10 @@ export default function HomePage() {
             ))}
           </div>
 
-          {/* Chart placeholder */}
+          {/* Live product preview: the same chart component analytics uses. */}
           <div className="mt-4 rounded-xl border border-line bg-surface p-6 shadow-sm dark:border-gray-800 dark:bg-gray-950">
             <p className="mb-4 text-sm font-medium">Clicks over time</p>
-            <div className="flex h-32 items-end gap-1.5">
-              {[40, 65, 45, 80, 55, 90, 70, 95, 60, 75, 85, 50].map((h, i) => (
-                <div
-                  key={i}
-                  className="flex-1 rounded-t-sm bg-linear-to-t from-brand-500 to-brand-300"
-                  style={{ height: `${h}%` }}
-                />
-              ))}
-            </div>
-            <div className="mt-2 flex justify-between text-[10px] text-gray-400">
-              <span>Mon</span>
-              <span>Tue</span>
-              <span>Wed</span>
-              <span>Thu</span>
-              <span>Fri</span>
-              <span>Sat</span>
-              <span>Sun</span>
-            </div>
+            <PreviewChart data={previewData} />
           </div>
 
           {/* Breakdown row */}

@@ -14,11 +14,19 @@ const envSchema = z.object({
   REDIS_TTL: z.coerce.number().int().min(60).max(86400).default(3600),
   RATE_LIMIT_WINDOW: z.coerce.number().int().min(1).max(3600).default(60),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().min(1).max(100000).default(100),
+  /**
+   * Anonymous-create budget. Guest endpoints mint database rows for
+   * strangers, so this stays tight regardless of the account budget above.
+   */
+  GUEST_CREATE_WINDOW_SECONDS: z.coerce.number().int().min(60).max(86400).default(3600),
+  GUEST_CREATE_MAX_REQUESTS: z.coerce.number().int().min(1).max(1000).default(10),
   RABBITMQ_URL: z.string().min(1).default('amqp://guest:guest@localhost:5672'),
   SSE_POLL_INTERVAL_MS: z.coerce.number().int().min(1000).max(60000).default(5000),
   SSE_MAX_CONNECTIONS: z.coerce.number().int().min(1).max(10000).default(1000),
   SSE_KEEPALIVE_MS: z.coerce.number().int().min(5000).max(120000).default(20000),
   RUN_WORKERS: z.coerce.boolean().default(false),
+  /** Bearer session lifetime. Logout deletes the row before this elapses. */
+  AUTH_SESSION_TTL_SECONDS: z.coerce.number().int().min(60).max(60 * 60 * 24 * 30).default(60 * 60 * 24 * 7),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

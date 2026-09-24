@@ -1,17 +1,23 @@
 import cors from 'cors';
-import express, { type Application, type NextFunction, type Request, type Response } from 'express';
+import express, { type Application, type NextFunction, type Request, type RequestHandler, type Response } from 'express';
 import helmet from 'helmet';
 import { ZodError } from 'zod';
 import { createUrlsController } from './controllers/urls.controller.js';
+import { AuthRepository } from './auth/auth.repository.js';
+import { AuthService } from './auth/auth.service.js';
+import { optionalAuth, requireAuth } from './auth/require-auth.js';
+import { createAuthController } from './controllers/auth.controller.js';
 import { UrlCache } from './cache/url-cache.js';
 import { ClickEventRepository } from './analytics/click-event-repository.js';
 import type { ClickEmitter } from './analytics/click-event.js';
 import { db } from './db/db.js';
 import { env } from './config/env.js';
 import { ConflictError } from './errors/conflict-error.js';
+import { BadRequestError } from './errors/bad-request-error.js';
 import { isDatabaseUnavailable, ServiceUnavailableError } from './errors/database-error.js';
 import { GoneError } from './errors/gone-error.js';
 import { NotFoundError } from './errors/not-found-error.js';
+import { UnauthorizedError } from './errors/unauthorized-error.js';
 import { UrlRepository } from './repositories/url.repository.js';
 import { OutboxClickEmitter } from './outbox/outbox-emitter.js';
 import { OutboxRepository } from './outbox/outbox-repository.js';
@@ -25,6 +31,7 @@ import { healthRouter } from './routes/health.js';
 import { metricsRouter, readyRouter } from './routes/observability.js';
 import { docsRouter } from './routes/docs.js';
 import { createRedirectRouter } from './routes/redirect.js';
+import { createAuthRouter } from './routes/auth.js';
 import { createStatsRouter } from './routes/stats.js';
 import { createUrlsRouter } from './routes/urls.js';
 import { UrlService } from './services/url.service.js';
@@ -37,6 +44,11 @@ export interface AppDeps {
    * Redis; pass `null` to disable limiting entirely for a test app.
    */
   rateLimiter?: ReturnType<typeof createRateLimiter> | null;
+  /**
+   * Override the anonymous-create limiter (strict anti-abuse budget).
+   * Same null-disable semantics as rateLimiter.
+   */
+  guestRateLimiter?: ReturnType<typeof createRateLimiter> | null;
   /** Override the click emitter (tests collect; default persists to outbox). */
   emitter?: ClickEmitter;
 }
@@ -44,6 +56,8 @@ export interface AppDeps {
 export interface AppResult {
   app: Application;
   urlService: UrlService;
+  /** Session gate for routes mounted after createApp (SSE). */
+  requireAuth: RequestHandler;
 }
 
 export function createApp(deps: AppDeps = {}): AppResult {
@@ -87,7 +101,7 @@ export function createApp(deps: AppDeps = {}): AppResult {
         }
       },
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Guest-Token'],
     }),
   );
 
@@ -109,8 +123,26 @@ export function createApp(deps: AppDeps = {}): AppResult {
     deps.cache ?? new UrlCache(getRedis()),
     deps.emitter ?? new OutboxClickEmitter(new OutboxRepository(db)),
     new ClickEventRepository(db),
+    new AuthRepository(db),
   );
   const urlsController = createUrlsController(urlService);
+  const authService = new AuthService(new AuthRepository(db));
+  const authenticate = requireAuth(authService);
+  const identify = optionalAuth(authService);
+  const authController = createAuthController(authService);
+
+  const credentialLimiter = createRateLimiter({
+    windowSeconds: 60,
+    maxRequests: 10,
+    keyPrefix: 'auth:credentials',
+  });
+  app.use(
+    '/api/v1/auth',
+    createAuthRouter(authController, {
+      credentialsLimiter: credentialLimiter,
+      requireAuth: authenticate,
+    }),
+  );
 
   // Write-path protection. /health and redirects stay unlimited (liveness
   // and the counting path must never 429); POST and DELETE share one write
@@ -135,14 +167,49 @@ export function createApp(deps: AppDeps = {}): AppResult {
     maxRequests: env.RATE_LIMIT_MAX_REQUESTS,
     keyPrefix: 'urls:read',
   });
-  app.get('/api/v1/urls', readLimiter, urlsController.listUrls);
-  app.get('/api/v1/urls/:shortCode', readLimiter, urlsController.getUrlDetails);
-  app.get('/api/v1/urls/:shortCode/analytics', readLimiter, urlsController.getAnalytics);
-  app.use('/api/v1/stats', readLimiter, createStatsRouter(urlsController));
+  // Create-path budget, split by identity AFTER optionalAuth has run:
+  // accounts share the write budget; anonymous creates get a strict
+  // anti-abuse bucket (guest endpoints mint database rows for strangers).
+  const guestCreateLimiter =
+    deps.guestRateLimiter !== undefined
+      ? deps.guestRateLimiter
+      : createRateLimiter({
+          windowSeconds: env.GUEST_CREATE_WINDOW_SECONDS,
+          maxRequests: env.GUEST_CREATE_MAX_REQUESTS,
+          keyPrefix: 'urls:guest-create',
+        });
+  const createBudget: RequestHandler = (req, res, next) => {
+    if (req.userId !== undefined) {
+      if (createLimiter === null) {
+        next();
+        return;
+      }
+      createLimiter(req, res, next);
+      return;
+    }
+    if (guestCreateLimiter === null) {
+      next();
+      return;
+    }
+    guestCreateLimiter(req, res, next);
+  };
+  // Create + claim mount BEFORE the shared router: Express matches in
+  // registration order and these two need different gates than the rest.
+  app.post('/api/v1/urls', identify, createBudget, urlsController.createUrl);
+  app.post('/api/v1/urls/claim', readLimiter, authenticate, urlsController.claimGuestLinks);
+  app.get('/api/v1/urls', readLimiter, authenticate, urlsController.listUrls);
+  app.get('/api/v1/urls/:shortCode', readLimiter, authenticate, urlsController.getUrlDetails);
+  app.get(
+    '/api/v1/urls/:shortCode/analytics',
+    readLimiter,
+    authenticate,
+    urlsController.getAnalytics,
+  );
+  app.use('/api/v1/stats', readLimiter, authenticate, createStatsRouter(urlsController));
   if (createLimiter !== null) {
-    app.use('/api/v1/urls', createLimiter, urlsRouter);
+    app.use('/api/v1/urls', createLimiter, authenticate, urlsRouter);
   } else {
-    app.use('/api/v1/urls', urlsRouter);
+    app.use('/api/v1/urls', authenticate, urlsRouter);
   }
 
   // Root: basic API info so GET / doesn't 404.
@@ -162,7 +229,7 @@ export function createApp(deps: AppDeps = {}): AppResult {
   // /ready, /metrics in M14) — Express matches in registration order.
   app.use('/', createRedirectRouter(urlsController));
 
-  return { app, urlService };
+  return { app, urlService, requireAuth: authenticate };
 }
 
 /**
@@ -202,8 +269,21 @@ export function registerFallback(app: Application): void {
       });
       return;
     }
+    if (err instanceof BadRequestError) {
+      res.status(err.status).json({
+        // Machine-readable code when present (e.g. GUEST_TOKEN_INVALID) so
+        // clients can react programmatically instead of matching messages.
+        error: err.code ?? 'BadRequest',
+        message: err.message,
+      });
+      return;
+    }
     if (err instanceof NotFoundError) {
       res.status(err.status).json({ error: 'NotFound', message: err.message });
+      return;
+    }
+    if (err instanceof UnauthorizedError) {
+      res.status(err.status).json({ error: 'Unauthorized', message: err.message });
       return;
     }
     if (err instanceof GoneError) {

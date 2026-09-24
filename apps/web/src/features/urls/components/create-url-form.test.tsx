@@ -7,6 +7,26 @@ import { CreateUrlForm } from './create-url-form';
 
 process.env['NEXT_PUBLIC_API_URL'] = 'http://localhost:3000';
 
+// Mutable identity: existing tests exercise the signed-in form (alias
+// visible); guest tests flip the flag. Default context has no user, so the
+// mock must opt in to authed explicitly.
+const authState = {
+  user: { id: 'u1', email: 'a@x.com' } as { id: string; email: string } | null,
+  isLoading: false,
+};
+
+vi.mock('../../auth/auth-context', () => ({
+  useAuth: () => ({
+    user: authState.user,
+    isLoading: authState.isLoading,
+    claimedCount: 0,
+    dismissClaimNotice: () => undefined,
+    login: async () => undefined,
+    register: async () => undefined,
+    logout: async () => undefined,
+  }),
+}));
+
 function renderForm() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -101,6 +121,48 @@ describe('CreateUrlForm', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Unable to connect to Shortly. Please try again.')).toBeTruthy();
+    });
+  });
+
+  describe('guest mode', () => {
+    it('hides the alias field and shows the sign-in hint', async () => {
+      authState.user = null;
+      try {
+        renderForm();
+        expect(screen.queryByLabelText(/custom alias/i)).toBeNull();
+        expect(screen.getByText(/want a custom alias\?/i)).toBeTruthy();
+        expect(screen.getByRole('link', { name: /sign in/i })).toBeTruthy();
+      } finally {
+        authState.user = { id: 'u1', email: 'a@x.com' };
+      }
+    });
+
+    it('submits without an alias for guests', async () => {
+      authState.user = null;
+      const fetchMock = vi.fn(async () => ({
+        ok: true,
+        status: 201,
+        json: async () => ({
+          shortCode: 'g1',
+          shortUrl: 'http://localhost:3000/g1',
+          originalUrl: 'https://example.com',
+        }),
+      }));
+      vi.stubGlobal('fetch', fetchMock);
+      try {
+        renderForm();
+        const user = userEvent.setup();
+        await user.type(screen.getByLabelText(/original url/i), 'https://example.com');
+        await user.click(screen.getByRole('button', { name: /create short url/i }));
+
+        expect(await screen.findByText('URL created successfully')).toBeTruthy();
+        const [, opts] = (fetchMock.mock.calls[0] ?? []) as unknown as [string, { body: string }];
+        expect(JSON.parse(opts.body)).toMatchObject({ customAlias: null });
+        // Guest success nudges toward signup.
+        expect(screen.getByRole('link', { name: /create an account/i })).toBeTruthy();
+      } finally {
+        authState.user = { id: 'u1', email: 'a@x.com' };
+      }
     });
   });
 });

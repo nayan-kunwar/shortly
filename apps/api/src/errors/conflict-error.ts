@@ -7,7 +7,7 @@ export class ConflictError extends Error {
   readonly status = 409;
 
   constructor(
-    readonly field: 'shortCode' | 'customAlias',
+    readonly field: 'shortCode' | 'customAlias' | 'email',
     message?: string,
   ) {
     super(message ?? `${field} already exists`);

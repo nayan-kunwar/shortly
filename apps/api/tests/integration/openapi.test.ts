@@ -14,6 +14,10 @@ interface OpenApiDoc {
 }
 
 const EXPECTED_ROUTES: [string, string][] = [
+  ['/api/v1/auth/register', 'post'],
+  ['/api/v1/auth/login', 'post'],
+  ['/api/v1/auth/logout', 'post'],
+  ['/api/v1/auth/me', 'get'],
   ['/api/v1/urls', 'post'],
   ['/api/v1/urls', 'get'],
   ['/api/v1/urls/{shortCode}', 'get'],

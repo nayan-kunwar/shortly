@@ -1,6 +1,4 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import request from 'supertest';
-import { createApp, registerFallback } from '../../src/app.js';
 import { UrlCache } from '../../src/cache/url-cache.js';
 import { ClickEventRepository } from '../../src/analytics/click-event-repository.js';
 import {
@@ -11,6 +9,7 @@ import {
 import { closeDb, db, pool } from '../../src/db/db.js';
 import { runMigrations } from '../../src/db/migrate.js';
 import { closeRedis, getRedis } from '../../src/redis/client.js';
+import { authedClient } from '../helpers.js';
 import { waitForRedis } from '../redis-ready.js';
 import { UrlRepository } from '../../src/repositories/url.repository.js';
 import { UrlService } from '../../src/services/url.service.js';
@@ -41,82 +40,77 @@ afterAll(async () => {
   await closeRedis();
 });
 
-async function createCode(app: ReturnType<typeof createApp>['app'], url: string): Promise<string> {
-  const res = await request(app).post('/api/v1/urls').send({ url });
+type Api = Awaited<ReturnType<typeof authedClient>>['api'];
+
+async function createCode(api: Api, url: string): Promise<string> {
+  const res = await api.post('/api/v1/urls').send({ url });
   expect(res.status).toBe(201);
   return String(res.body.shortCode);
 }
 
 describe('GET /:shortCode', () => {
   it('redirects with 302 and Location to the original URL', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    const code = await createCode(app, 'https://example.com/landing');
+    const { api } = await authedClient();
+    const code = await createCode(api, 'https://example.com/landing');
 
-    const res = await request(app).get(`/${code}`).redirects(0);
+    const res = await api.get(`/${code}`).redirects(0);
     expect(res.status).toBe(302);
     expect(res.headers['location']).toBe('https://example.com/landing');
   });
 
   it('redirects custom aliases too', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    const create = await request(app)
+    const { api } = await authedClient();
+    const create = await api
       .post('/api/v1/urls')
       .send({ url: 'https://github.com/', customAlias: 'gh4' });
     expect(create.status).toBe(201);
 
-    const res = await request(app).get('/gh4').redirects(0);
+    const res = await api.get('/gh4').redirects(0);
     expect(res.status).toBe(302);
     expect(res.headers['location']).toBe('https://github.com/');
   });
 
   it('answers 404 for unknown codes', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    const res = await request(app).get('/doesnotexist').redirects(0);
+    const { api } = await authedClient();
+    const res = await api.get('/doesnotexist').redirects(0);
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('NotFound');
   });
 
   it('answers 410 for deactivated URLs', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    const code = await createCode(app, 'https://example.com/bye');
-    await service.deactivateUrl(code);
+    const { api, auth } = await authedClient();
+    const code = await createCode(api, 'https://example.com/bye');
+    await service.deactivateUrl(code, auth.userId);
 
-    const res = await request(app).get(`/${code}`).redirects(0);
+    const res = await api.get(`/${code}`).redirects(0);
     expect(res.status).toBe(410);
     expect(res.body.error).toBe('Gone');
     expect(res.body.reason).toBe('deactivated');
   });
 
   it('answers 410 for expired URLs', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    const code = await createCode(app, 'https://example.com/old');
-    await service.updateUrl(code, { expiresAt: new Date(Date.now() - 1_000) });
+    const { api, auth } = await authedClient();
+    const code = await createCode(api, 'https://example.com/old');
+    await service.updateUrl(code, { expiresAt: new Date(Date.now() - 1_000) }, auth.userId);
 
-    const res = await request(app).get(`/${code}`).redirects(0);
+    const res = await api.get(`/${code}`).redirects(0);
     expect(res.status).toBe(410);
     expect(res.body.reason).toBe('expired');
   });
 
   it('still serves /health and API routes (registration order intact)', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    await expect(request(app).get('/health')).resolves.toMatchObject({ status: 200 });
-    const res = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/order' });
+    const { api } = await authedClient();
+    await expect(api.get('/health')).resolves.toMatchObject({ status: 200 });
+    const res = await api.post('/api/v1/urls').send({ url: 'https://example.com/order' });
     expect(res.status).toBe(201);
   });
 
   it('emits one sanitized url.clicked event per successful redirect', async () => {
     const emitter = new CollectingClickEmitter();
-    const { app } = createApp({ emitter });
-    registerFallback(app);
-    const code = await createCode(app, 'https://example.com/counted');
+    const { api } = await authedClient({ emitter });
+    const code = await createCode(api, 'https://example.com/counted');
 
-    const res = await request(app)
+    const res = await api
       .get(`/${code}`)
       .redirects(0)
       .set('User-Agent', 'test-agent/9.9')
@@ -136,13 +130,12 @@ describe('GET /:shortCode', () => {
 
   it('emits nothing for 404 and 410 answers', async () => {
     const emitter = new CollectingClickEmitter();
-    const { app } = createApp({ emitter });
-    registerFallback(app);
-    const code = await createCode(app, 'https://example.com/uncounted');
-    await service.deactivateUrl(code);
+    const { api, auth } = await authedClient({ emitter });
+    const code = await createCode(api, 'https://example.com/uncounted');
+    await service.deactivateUrl(code, auth.userId);
 
-    await request(app).get('/never-existed').redirects(0);
-    await request(app).get(`/${code}`).redirects(0);
+    await api.get('/never-existed').redirects(0);
+    await api.get(`/${code}`).redirects(0);
     expect(emitter.events).toHaveLength(0);
   });
 });

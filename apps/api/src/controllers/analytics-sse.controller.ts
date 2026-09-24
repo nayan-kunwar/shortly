@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { NextFunction, Request, Response } from 'express';
+import { UnauthorizedError } from '../errors/unauthorized-error.js';
 import type { SseConnectionManager } from '../sse/connection-manager.js';
 
 const shortCodeParams = z.object({
@@ -15,6 +16,8 @@ export function createAnalyticsSseController(manager: SseConnectionManager) {
     async streamAnalytics(req: Request, res: Response, next: NextFunction): Promise<void> {
       try {
         const { shortCode } = shortCodeParams.parse(req.params);
+        if (req.userId === undefined) throw new UnauthorizedError();
+        await manager.assertOwned(shortCode, req.userId);
 
         // SSE headers — all must be set BEFORE flushHeaders()
         res.setHeader('Content-Type', 'text/event-stream');
@@ -25,7 +28,7 @@ export function createAnalyticsSseController(manager: SseConnectionManager) {
         res.flushHeaders();
 
         // Register connection — manager handles the rest
-        const connId = manager.addConnection(shortCode, res);
+        const connId = manager.addConnection(shortCode, res, req.userId);
         if (connId === '') return; // 503 already sent
 
         // Cleanup on client disconnect

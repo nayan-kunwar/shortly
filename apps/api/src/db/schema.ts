@@ -13,11 +13,36 @@ import {
 } from 'drizzle-orm/pg-core';
 import type { ClickEvent } from '../analytics/click-event.js';
 
+/** Accounts. Mirror of `migrations/005_auth.sql`. */
+export const users = pgTable('users', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: text('email').notNull().unique('users_email_unique'),
+  passwordHash: text('password_hash').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+});
+
+/** Guest identities for anonymous creates. Mirror of `migrations/006_guests.sql`. */
+export const guests = pgTable('guests', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+});
+
+/** Opaque bearer sessions. Only the SHA-256 of the token is stored. */
+export const sessions = pgTable('sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id),
+  tokenHash: text('token_hash').notNull().unique('sessions_token_hash_unique'),
+  expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+});
+
 /**
  * TypeScript source of truth for the `urls` table. Must stay in sync with
- * `migrations/001_create_urls.sql` — migrations are hand-written SQL (the
- * `updated_at` trigger lives there; Drizzle cannot express triggers), and
- * this schema gives us typed queries over that SQL-managed shape.
+ * `migrations/001_create_urls.sql` and `005_auth.sql` — migrations are
+ * hand-written SQL (the `updated_at` trigger lives there; Drizzle cannot
+ * express triggers), and this schema gives us typed queries over that shape.
  */
 export const urls = pgTable(
   'urls',
@@ -30,7 +55,9 @@ export const urls = pgTable(
     shortCode: text('short_code').notNull().unique('urls_short_code_unique'),
     originalUrl: text('original_url').notNull(),
     customAlias: text('custom_alias').unique('urls_custom_alias_unique'),
-    userId: text('user_id'),
+    userId: uuid('user_id').references(() => users.id),
+    /** Guest owner for anonymous creates. Set only while user_id IS NULL. */
+    guestId: uuid('guest_id').references(() => guests.id),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
     expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }),
@@ -41,6 +68,13 @@ export const urls = pgTable(
     // path (short_code) and alias lookups (custom_alias, M6). Named to match
     // the SQL migration so 23505 mapping stays stable.
     check('urls_original_url_length', sql`char_length(${t.originalUrl}) BETWEEN 1 AND 2048`),
+    // Owner keyset lists: filter user_id, order id DESC. SQL migration uses
+    // (user_id, id DESC); this index name matches that migration.
+    // Claim scan: one guest's unclaimed links, newest first.
+    index('idx_urls_guest_created').on(t.guestId, t.id),
+    // Owner keyset lists: filter user_id, order id DESC. SQL migration uses
+    // (user_id, id DESC); this index name matches that migration.
+    index('idx_urls_user_created').on(t.userId, t.id),
   ],
 );
 
@@ -91,4 +125,4 @@ export const clickEvents = pgTable(
   (t) => [index('idx_click_events_link_time').on(t.shortCode, t.clickedAt)],
 );
 
-export const schema = { urls, outboxEvents, clickEvents };
+export const schema = { users, sessions, guests, urls, outboxEvents, clickEvents };

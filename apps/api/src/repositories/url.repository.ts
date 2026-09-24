@@ -12,6 +12,8 @@ export interface ListUrlsInput {
   /** Keyset cursor: return rows with id below this (newest-first pages). */
   cursorId?: number | undefined;
   search?: string | undefined;
+  /** Only this owner's rows. Unowned legacy rows are excluded. */
+  userId: string;
 }
 
 export interface ListedUrl extends UrlRecord {
@@ -40,6 +42,7 @@ function toRecord(row: UrlRecord): UrlRecord {
     originalUrl: row.originalUrl,
     customAlias: row.customAlias,
     userId: row.userId,
+    guestId: row.guestId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     expiresAt: row.expiresAt,
@@ -104,6 +107,8 @@ export class UrlRepository {
           originalUrl: input.originalUrl,
           customAlias: input.customAlias,
           expiresAt: input.expiresAt,
+          userId: input.userId,
+          guestId: input.guestId,
         })
         .returning();
       const row = rows[0];
@@ -137,6 +142,8 @@ export class UrlRepository {
             originalUrl: input.originalUrl,
             customAlias: input.customAlias,
             expiresAt: input.expiresAt,
+            userId: input.userId,
+            guestId: input.guestId,
           })
           .returning();
         const pending = inserted[0];
@@ -161,18 +168,30 @@ export class UrlRepository {
     return row === undefined ? null : row;
   }
 
+  /** Private-plane lookup. A missing code and another user's code both return null. */
+  async findOwned(shortCode: string, userId: string): Promise<UrlRecord | null> {
+    const rows = await this.db
+      .select()
+      .from(urls)
+      .where(and(eq(urls.shortCode, shortCode), eq(urls.userId, userId)));
+    const row = rows[0];
+    return row === undefined ? null : row;
+  }
+
   async findByCustomAlias(alias: string): Promise<UrlRecord | null> {
     const rows = await this.db.select().from(urls).where(eq(urls.customAlias, alias));
     const row = rows[0];
     return row === undefined ? null : toRecord(row);
   }
 
-  /** Global counters for the dashboard. Plain COUNT(*) — no filters to index. */
-  async countUrls(activeOnly: boolean): Promise<number> {
+  /** Owner-scoped counters for the dashboard. */
+  async countUrls(activeOnly: boolean, userId: string): Promise<number> {
+    const filters = [eq(urls.userId, userId)];
+    if (activeOnly) filters.push(eq(urls.isActive, true));
     const rows = await this.db
       .select({ count: count() })
       .from(urls)
-      .where(activeOnly ? eq(urls.isActive, true) : undefined);
+      .where(and(...filters));
     return rows[0]?.count ?? 0;
   }
 
@@ -188,17 +207,16 @@ export class UrlRepository {
    * orders by count DESC, and LIMIT 1 returns the winner.
    */
   async listUrls(input: ListUrlsInput): Promise<ListUrlsResult> {
-    const conditions = [];
+    const conditions = [eq(urls.userId, input.userId)];
     if (input.cursorId !== undefined) conditions.push(lt(urls.id, input.cursorId));
     if (input.search !== undefined && input.search !== '') {
       const term = `%${escapeLike(input.search)}%`;
-      conditions.push(
-        or(
-          ilike(urls.shortCode, term),
-          ilike(urls.originalUrl, term),
-          ilike(urls.customAlias, term),
-        ),
+      const matches = or(
+        ilike(urls.shortCode, term),
+        ilike(urls.originalUrl, term),
+        ilike(urls.customAlias, term),
       );
+      if (matches !== undefined) conditions.push(matches);
     }
 
     // Correlated scalar subquery: top value for a dimension per URL.
@@ -220,6 +238,7 @@ export class UrlRepository {
         originalUrl: urls.originalUrl,
         customAlias: urls.customAlias,
         userId: urls.userId,
+        guestId: urls.guestId,
         createdAt: urls.createdAt,
         updatedAt: urls.updatedAt,
         expiresAt: urls.expiresAt,
@@ -231,7 +250,7 @@ export class UrlRepository {
       })
       .from(urls)
       .leftJoin(clickEvents, eq(clickEvents.shortCode, urls.shortCode))
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .where(and(...conditions))
       .groupBy(urls.id)
       .orderBy(desc(urls.id))
       .limit(input.limit + 1);
@@ -251,13 +270,12 @@ export class UrlRepository {
     };
   }
 
-  /** Soft-delete: flip the flag, keep the row for analytics history. */
-  async deactivate(shortCode: string): Promise<UrlRecord | null> {
-    try {
+  /** Soft-delete one owner's row. Another user's code updates nothing. */
+  async deactivate(shortCode: string, userId: string): Promise<UrlRecord | null> {    try {
       const rows = await this.db
         .update(urls)
         .set({ isActive: false })
-        .where(eq(urls.shortCode, shortCode))
+        .where(and(eq(urls.shortCode, shortCode), eq(urls.userId, userId)))
         .returning();
       const row = rows[0];
       return row === undefined ? null : row;
@@ -266,23 +284,39 @@ export class UrlRepository {
     }
   }
 
-  async update(shortCode: string, patch: UpdateUrlPatch): Promise<UrlRecord | null> {
-    const set: { originalUrl?: string; expiresAt?: Date | null; isActive?: boolean } = {};
+  async update(shortCode: string, patch: UpdateUrlPatch, userId: string): Promise<UrlRecord | null> {    const set: { originalUrl?: string; expiresAt?: Date | null; isActive?: boolean } = {};
     if (patch.originalUrl !== undefined) set.originalUrl = patch.originalUrl;
     if (patch.expiresAt !== undefined) set.expiresAt = patch.expiresAt;
     if (patch.isActive !== undefined) set.isActive = patch.isActive;
-    if (Object.keys(set).length === 0) return this.findByShortCode(shortCode);
+    if (Object.keys(set).length === 0) return this.findOwned(shortCode, userId);
 
     try {
       const rows = await this.db
         .update(urls)
         .set(set)
-        .where(eq(urls.shortCode, shortCode))
+        .where(and(eq(urls.shortCode, shortCode), eq(urls.userId, userId)))
         .returning();
       const row = rows[0];
       return row === undefined ? null : row;
     } catch (err) {
       throw mapConstraintError(err);
     }
+  }
+
+  /**
+   * Move one guest's unclaimed links to an account. One atomic UPDATE:
+   * the `user_id IS NULL` guard means account-owned rows (and legacy
+   * pre-account rows) can never be taken over, and concurrent claims are
+   * serialized by the row locks — the second claim simply matches nothing.
+   * Returns the claimed short codes (empty when there is nothing to move,
+   * so retries are idempotent, not errors).
+   */
+  async claimGuestLinks(guestId: string, userId: string): Promise<string[]> {
+    const rows = await this.db
+      .update(urls)
+      .set({ userId, guestId: null })
+      .where(and(eq(urls.guestId, guestId), sql`${urls.userId} IS NULL`))
+      .returning({ shortCode: urls.shortCode });
+    return rows.map((r) => r.shortCode);
   }
 }

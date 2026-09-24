@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import request from 'supertest';
-import { createApp, registerFallback } from '../../src/app.js';
+import { authedClient } from '../helpers.js';
 import { ClickEventRepository } from '../../src/analytics/click-event-repository.js';
 import { closeDb, db, pool } from '../../src/db/db.js';
 import { runMigrations } from '../../src/db/migrate.js';
@@ -32,17 +31,17 @@ afterAll(async () => {
 
 describe('GET /api/v1/stats', () => {
   it('returns global totals with UTC-day today boundary', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    const first = await request(app).post('/api/v1/urls').send({ url: 'https://example.com/1' });
-    await request(app).post('/api/v1/urls').send({ url: 'https://example.com/2' });
-    await urls.deactivate(String(first.body.shortCode));
+    const { api, auth } = await authedClient();
+    const first = await api.post('/api/v1/urls').send({ url: 'https://example.com/1' });
+    await api.post('/api/v1/urls').send({ url: 'https://example.com/2' });
+    const code = String(first.body.shortCode);
+    await urls.deactivate(code, auth.userId);
 
     const fresh = new Date().toISOString();
     const old = new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString();
     const click = {
       eventType: 'url.clicked',
-      shortCode: 'x',
+      shortCode: code,
       clickedAt: fresh,
       ip: null,
       userAgent: null,
@@ -52,7 +51,7 @@ describe('GET /api/v1/stats', () => {
     await analytics.recordClick({ ...click, clickedAt: fresh }, randomUUID());
     await analytics.recordClick({ ...click, clickedAt: old }, randomUUID());
 
-    const res = await request(app).get('/api/v1/stats');
+    const res = await api.get('/api/v1/stats');
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
       totalUrls: 2,
@@ -64,9 +63,8 @@ describe('GET /api/v1/stats', () => {
   });
 
   it('returns zeros on an empty database', async () => {
-    const { app } = createApp();
-    registerFallback(app);
-    const res = await request(app).get('/api/v1/stats');
+    const { api } = await authedClient();
+    const res = await api.get('/api/v1/stats');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ totalUrls: 0, activeUrls: 0, totalClicks: 0, clicksToday: 0 });
   });

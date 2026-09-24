@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { BarChart3, Link2, MousePointerClick, Zap } from 'lucide-react';
+import { useAuth } from '../../features/auth/auth-context';
 import { CreateUrlForm } from '../../features/urls/components/create-url-form';
 import { UrlTable } from '../../features/urls/components/url-table';
 import { useUrls } from '../../features/urls/hooks/use-urls';
@@ -46,9 +47,22 @@ export default function DashboardPage() {
   const breakdowns = useBreakdowns();
   const recents = useUrls('', 5);
   const recentItems = recents.data?.pages[0]?.items ?? [];
+  const { claimedCount, dismissClaimNotice } = useAuth();
 
   return (
     <div className="space-y-8">
+      {claimedCount > 0 && (
+        <p
+          role="status"
+          className="flex flex-wrap items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800 dark:border-brand-900 dark:bg-brand-900/20 dark:text-brand-200"
+        >
+          {claimedCount} {claimedCount === 1 ? 'link' : 'links'} from your guest session{' '}
+          {claimedCount === 1 ? 'was' : 'were'} moved to your account.
+          <button type="button" onClick={dismissClaimNotice} className="font-medium underline">
+            Dismiss
+          </button>
+        </p>
+      )}
       <section aria-label="Statistics">
         {stats.isError ? (
           <p role="alert" className="text-sm text-red-600 dark:text-red-400">

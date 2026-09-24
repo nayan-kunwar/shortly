@@ -2,11 +2,13 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { Resolver } from 'react-hook-form';
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { ShortlyApiError } from '../../../lib/api/client';
 import { Button } from '../../../components/ui/button';
 import { FieldError, TextInput } from '../../../components/ui/input';
+import { useAuth } from '../../auth/auth-context';
 import { useCreateUrl } from '../hooks/use-create-url';
 import { createUrlSchema, customAliasRule } from '../schemas/create-url';
 import { CreateResult } from './create-result';
@@ -35,6 +37,10 @@ type FormValues = z.infer<typeof formSchema>;
 /** URL creation form: RHF + mirrored Zod, backend errors mapped to fields. */
 export function CreateUrlForm() {
   const mutation = useCreateUrl();
+  const { user, isLoading: authLoading } = useAuth();
+  // Custom aliases need an account (anti-squatting + signup nudge). While
+  // auth resolves, show the field to avoid layout shift for signed-in users.
+  const canUseAlias = user !== null || authLoading;
   const {
     register,
     handleSubmit,
@@ -121,14 +127,25 @@ export function CreateUrlForm() {
         <label htmlFor="create-alias" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
           Custom alias <span className="font-normal text-gray-500">(optional)</span>
         </label>
-        <TextInput
-          id="create-alias"
-          type="text"
-          placeholder="github"
-          autoComplete="off"
-          {...register('customAlias')}
-        />
-        <FieldError message={errors.customAlias?.message} />
+        {canUseAlias ? (
+          <>
+            <TextInput
+              id="create-alias"
+              type="text"
+              placeholder="github"
+              autoComplete="off"
+              {...register('customAlias')}
+            />
+            <FieldError message={errors.customAlias?.message} />
+          </>
+        ) : (
+          <p className="rounded-lg border border-dashed border-line px-3 py-2 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+            Want a custom alias?{' '}
+            <Link href="/login" className="font-medium text-brand-600 hover:underline dark:text-brand-400">
+              Sign in
+            </Link>
+          </p>
+        )}
       </div>
 
       <div>

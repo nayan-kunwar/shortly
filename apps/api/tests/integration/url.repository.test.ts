@@ -3,12 +3,14 @@ import { closeDb, db, pool } from '../../src/db/db.js';
 import { runMigrations } from '../../src/db/migrate.js';
 import { ConflictError } from '../../src/errors/conflict-error.js';
 import { UrlRepository } from '../../src/repositories/url.repository.js';
+import { insertUser } from '../helpers.js';
 
 // These tests need a real PostgreSQL. Start it first:
 //   npm run db:up && npm run db:migrate
 // (CI runs the same two commands before `npm test`.)
 
 let repo: UrlRepository;
+let userId: string;
 
 beforeAll(async () => {
   await runMigrations(pool);
@@ -19,6 +21,7 @@ beforeEach(async () => {
   // TRUNCATE (not DELETE) + restart the sequence: every test starts from a
   // known-empty table, and ids stay small and readable while debugging.
   await pool.query('TRUNCATE urls RESTART IDENTITY');
+  userId = await insertUser();
 });
 
 afterAll(async () => {
@@ -32,6 +35,7 @@ describe('UrlRepository', () => {
       originalUrl: 'https://example.com/very/long/url',
       customAlias: null,
       expiresAt: null,
+      userId,
     });
 
     expect(created.id).toBeGreaterThan(0);
@@ -56,6 +60,7 @@ describe('UrlRepository', () => {
       originalUrl: 'https://example.com/a',
       customAlias: null,
       expiresAt: null,
+      userId,
     });
 
     const err = await repo
@@ -63,8 +68,9 @@ describe('UrlRepository', () => {
         shortCode: 'dup001',
         originalUrl: 'https://example.com/b',
         customAlias: null,
-        expiresAt: null,
-      })
+      expiresAt: null,
+      userId,
+    })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ConflictError);
     expect((err as ConflictError).field).toBe('shortCode');
@@ -76,6 +82,7 @@ describe('UrlRepository', () => {
       originalUrl: 'https://example.com/a',
       customAlias: 'github',
       expiresAt: null,
+      userId,
     });
 
     const err = await repo
@@ -83,8 +90,9 @@ describe('UrlRepository', () => {
         shortCode: 'c2',
         originalUrl: 'https://example.com/b',
         customAlias: 'github',
-        expiresAt: null,
-      })
+      expiresAt: null,
+      userId,
+    })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ConflictError);
     expect((err as ConflictError).field).toBe('customAlias');
@@ -96,6 +104,7 @@ describe('UrlRepository', () => {
       originalUrl: 'https://github.com/',
       customAlias: 'gh',
       expiresAt: null,
+      userId,
     });
 
     const found = await repo.findByCustomAlias('gh');
@@ -109,16 +118,17 @@ describe('UrlRepository', () => {
       originalUrl: 'https://example.com/gone',
       customAlias: null,
       expiresAt: null,
+      userId,
     });
 
-    const deactivated = await repo.deactivate('gone01');
+    const deactivated = await repo.deactivate('gone01', userId);
     expect(deactivated?.isActive).toBe(false);
 
     // The row still exists — upper layers decide that inactive means 410.
     const found = await repo.findByShortCode('gone01');
     expect(found?.isActive).toBe(false);
 
-    await expect(repo.deactivate('unknown')).resolves.toBeNull();
+    await expect(repo.deactivate('unknown', userId)).resolves.toBeNull();
   });
 
   it('stores and updates expiry', async () => {
@@ -128,16 +138,17 @@ describe('UrlRepository', () => {
       originalUrl: 'https://example.com/exp',
       customAlias: null,
       expiresAt,
+      userId,
     });
 
     const found = await repo.findByShortCode('exp001');
     expect(found?.expiresAt).toBeInstanceOf(Date);
 
-    const updated = await repo.update('exp001', { expiresAt: null });
+    const updated = await repo.update('exp001', { expiresAt: null }, userId);
     expect(updated?.expiresAt).toBeNull();
 
-    const untouched = await repo.update('exp001', {});
+    const untouched = await repo.update('exp001', {}, userId);
     expect(untouched?.shortCode).toBe('exp001');
-    await expect(repo.update('unknown', { isActive: false })).resolves.toBeNull();
+    await expect(repo.update('unknown', { isActive: false }, userId)).resolves.toBeNull();
   });
 });

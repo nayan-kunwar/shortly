@@ -184,6 +184,7 @@ cd infrastructure && docker compose up -d --build
 | `REDIS_TTL`               | `3600`                                                | Cache TTL in seconds (60-86400)   |
 | `RATE_LIMIT_WINDOW`       | `60`                                                  | Rate limit window in seconds      |
 | `RATE_LIMIT_MAX_REQUESTS` | `100`                                                 | Max requests per window per IP    |
+| `AUTH_SESSION_TTL_SECONDS` | `604800`                                            | Bearer session lifetime (7 days)  |
 | `LOG_LEVEL`               | `info`                                                | Log level (debug/info/warn/error) |
 | `NODE_ENV`                | `development`                                         | Environment                       |
 | `CORS_ORIGIN`             | `http://localhost:3001`                               | Allowed CORS origin               |
@@ -206,7 +207,9 @@ safety.
 
 | Table           | Purpose                                                                                         |
 | --------------- | ----------------------------------------------------------------------------------------------- |
-| `urls`          | Shortened link records (short_code, original_url, custom_alias, is_active, expires_at)          |
+| `urls`          | Shortened link records. `user_id` is the owner; NULL rows predate accounts and stay publicly resolvable |
+| `users`         | Accounts (`email`, `password_hash`)                                                             |
+| `sessions`      | Bearer sessions. Only the SHA-256 of the token is stored                                        |
 | `outbox_events` | Transactional outbox for reliable event publication (event_id, payload, published_at, attempts) |
 | `click_events`  | Raw click analytics (event_id, short_code, country, device_type, browser, referrer, clicked_at) |
 
@@ -218,7 +221,11 @@ safety.
 | `GET`    | `/health`                                 | Liveness probe (no dependency checks)        |
 | `GET`    | `/ready`                                  | Readiness probe (checks PG, Redis, RabbitMQ) |
 | `GET`    | `/metrics`                                | Prometheus metrics                           |
-| `POST`   | `/api/v1/urls`                            | Create short URL                             |
+| `POST`   | `/api/v1/auth/register`                   | Create an account and session            |
+| `POST`   | `/api/v1/auth/login`                      | Start a session                          |
+| `POST`   | `/api/v1/auth/logout`                     | Delete the current session               |
+| `GET`    | `/api/v1/auth/me`                         | Current user                             |
+| `POST`   | `/api/v1/urls`                            | Create short URL (authenticated)         |
 | `GET`    | `/api/v1/urls`                            | List URLs (cursor pagination)                |
 | `GET`    | `/api/v1/urls/:code`                      | URL details                                  |
 | `GET`    | `/api/v1/urls/:code/analytics`            | Click analytics                              |
@@ -461,7 +468,7 @@ requirements, data model, request flows, and cross-cutting principles:
 
 ## Known Limitations
 
-- **No user authentication** — out of scope by design
+- **Legacy unowned links** — rows with `user_id` NULL still redirect and cannot be managed or measured by any account
 - **No custom domains** — DNS + cert complexity for zero learning value
 - **No link editing** — deactivate + recreate covers the lifecycle
 - **Analytics eventually consistent** — pipeline latency from outbox →

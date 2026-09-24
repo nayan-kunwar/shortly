@@ -8,6 +8,7 @@ import { ThemeProvider } from '../../components/layout/theme-provider';
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/',
+  useRouter: () => ({ replace: vi.fn() }),
 }));
 
 process.env['NEXT_PUBLIC_API_URL'] = 'http://localhost:3000';
