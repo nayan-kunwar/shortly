@@ -122,8 +122,6 @@ export default function HomePage() {
   // Sample buckets computed once: stable identity across stats refetches so
   // the preview chart never re-animates, labels stay fresh per mount.
   const previewData = useMemo(() => previewBuckets(), []);
-  // Guests funnel into signup; signed-in users scroll to their live form.
-  const createHref = user === null && !isLoading ? '/register' : '#shorten';
 
   return (
     <div className="overflow-hidden">
@@ -162,7 +160,7 @@ export default function HomePage() {
           {/* CTA row */}
           <div className="animate-fade-in-up animation-delay-300 mt-8 flex flex-wrap items-center justify-center gap-3">
             <a
-              href={createHref}
+              href="#shorten"
               className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:bg-brand-600 hover:shadow-xl"
             >
               Create your short link
@@ -208,16 +206,16 @@ export default function HomePage() {
                 </p>
               </div>
             </div>
-            {user === null && !isLoading ? (
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+            {user === null && !isLoading && (
+              <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                No account needed to try it —{' '}
                 <Link href="/register" className="font-medium text-brand-600 hover:underline">
-                  Create an account
+                  sign up
                 </Link>{' '}
-                to shorten links and see their analytics.
+                to keep your links everywhere.
               </p>
-            ) : (
-              <CreateUrlForm />
             )}
+            <CreateUrlForm />
           </div>
         </div>
       </Section>
