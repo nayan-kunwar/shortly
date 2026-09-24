@@ -39,7 +39,7 @@ export function DeactivateButton({
         {mutation.isPending ? 'Deactivating…' : armed ? 'Confirm deactivate' : 'Deactivate'}
       </Button>
       {mutation.isError && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           Could not deactivate. Please try again.
         </p>
       )}

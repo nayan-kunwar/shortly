@@ -4,10 +4,32 @@
 /* Class-based dark mode for next-themes (attribute="class"). */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ------------------------------------------------------------------ */
+/*  Design tokens — retheme by editing these hexes only.               */
+/* ------------------------------------------------------------------ */
+@theme {
+  /* Brand scale (coral). 500 is the primary accent. */
+  --color-brand-50: #fff1f3;
+  --color-brand-100: #ffe1e5;
+  --color-brand-200: #ffc6cd;
+  --color-brand-300: #ffa0ab;
+  --color-brand-400: #fc6b7d;
+  --color-brand-500: #fa5261;
+  --color-brand-600: #e83244;
+  --color-brand-700: #c42133;
+  --color-brand-800: #a31f2f;
+  --color-brand-900: #881e2c;
+
+  /* Semantic surfaces */
+  --color-canvas: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-line: #e5e7eb;
+}
+
 body {
   @apply antialiased;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  @apply bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100;
+  @apply bg-canvas text-gray-900 dark:bg-gray-950 dark:text-gray-100;
 }
 
 /* Visible keyboard focus everywhere. */
@@ -50,14 +72,14 @@ body {
 
 /* Gradient text utility. */
 .gradient-text {
-  background: linear-gradient(135deg, #111827 0%, #6b7280 100%);
+  background: linear-gradient(135deg, #e83244 0%, #fa5261 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 :root.dark .gradient-text {
-  background: linear-gradient(135deg, #f9fafb 0%, #9ca3af 100%);
+  background: linear-gradient(135deg, #fc6b7d 0%, #ffa0ab 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -73,7 +95,7 @@ body {
   position: absolute;
   inset: -1px;
   border-radius: inherit;
-  background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(168,85,247,0.15), rgba(99,102,241,0.05));
+  background: linear-gradient(135deg, rgba(250,82,97,0.2), rgba(252,107,125,0.12), rgba(250,82,97,0.05));
   z-index: -1;
   opacity: 0;
   transition: opacity 0.3s ease;

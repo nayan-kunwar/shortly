@@ -45,7 +45,7 @@ export function AnalyticsSummary({ data }: { data: UrlAnalytics }) {
       {cards.map((card) => (
         <div
           key={card.label}
-          className="rounded-lg border border-gray-200 p-4 dark:border-gray-800"
+          className="rounded-xl border border-line bg-surface p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900"
         >
           <p className="text-sm text-gray-500">{card.label}</p>
           <p className="mt-1 text-2xl font-bold tabular-nums">{card.value}</p>

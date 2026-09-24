@@ -18,7 +18,7 @@ export default function UrlDetailPage({ params }: { params: Promise<{ shortCode:
 
   if (query.isError) {
     return (
-      <p role="alert" className="text-sm text-red-600">
+      <p role="alert" className="text-sm text-red-600 dark:text-red-400">
         This link does not exist or could not be loaded.
       </p>
     );
@@ -59,13 +59,13 @@ export default function UrlDetailPage({ params }: { params: Promise<{ shortCode:
           href={url.originalUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-gray-900"
+          className="inline-flex items-center rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
         >
           Open URL
         </a>
         <Link
           href={`/urls/${encodeURIComponent(url.shortCode)}/analytics`}
-          className="inline-flex items-center rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-gray-900"
+          className="inline-flex items-center rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
         >
           View analytics
         </Link>

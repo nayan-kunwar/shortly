@@ -10,7 +10,7 @@ export default function CreatePage() {
       <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
         Links are created live against the Shortly API.
       </p>
-      <div className="mt-6">
+      <div className="mt-6 rounded-xl border border-line bg-surface p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <CreateUrlForm />
       </div>
     </div>

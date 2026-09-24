@@ -8,7 +8,10 @@ export default function NotFound() {
       <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
         This section arrives in its milestone — or the link is simply unknown.
       </p>
-      <Link href="/" className="mt-4 inline-block text-sm font-medium underline">
+      <Link
+        href="/"
+        className="mt-4 inline-block text-sm font-medium text-brand-600 underline hover:text-brand-700 dark:text-brand-400"
+      >
         Back to dashboard
       </Link>
     </div>

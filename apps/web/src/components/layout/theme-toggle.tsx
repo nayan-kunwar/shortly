@@ -27,7 +27,7 @@ export function ThemeToggle() {
       type="button"
       onClick={() => setTheme(next)}
       aria-label={`Switch to ${next} mode`}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-gray-900"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-surface text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
     >
       {active === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
     </button>

@@ -26,21 +26,21 @@ const FEATURES = [
     icon: Zap,
     title: 'Lightning-fast redirects',
     desc: 'Sub-50ms redirects powered by Redis caching. Your users never wait.',
-    color: 'from-amber-500/10 to-orange-500/10 dark:from-amber-500/5 dark:to-orange-500/5',
+    color: 'from-amber-50 to-orange-100/60 dark:from-amber-900/20 dark:to-orange-900/10',
     iconColor: 'text-amber-600 dark:text-amber-400',
   },
   {
     icon: BarChart3,
     title: 'Powerful analytics',
     desc: 'Understand clicks, countries, devices, browsers, and traffic patterns in real time.',
-    color: 'from-blue-500/10 to-indigo-500/10 dark:from-blue-500/5 dark:to-indigo-500/5',
+    color: 'from-blue-50 to-indigo-100/60 dark:from-blue-900/20 dark:to-indigo-900/10',
     iconColor: 'text-blue-600 dark:text-blue-400',
   },
   {
     icon: Tag,
     title: 'Custom aliases',
     desc: 'Create memorable short URLs using your own aliases. Make every link yours.',
-    color: 'from-purple-500/10 to-pink-500/10 dark:from-purple-500/5 dark:to-pink-500/5',
+    color: 'from-purple-50 to-pink-100/60 dark:from-purple-900/20 dark:to-pink-900/10',
     iconColor: 'text-purple-600 dark:text-purple-400',
   },
 ] as const;
@@ -100,13 +100,13 @@ export default function HomePage() {
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
         >
-          <div className="absolute left-1/2 top-0 h-125 w-200 -translate-x-1/2 rounded-full bg-linear-to-b from-gray-100/80 to-transparent blur-3xl dark:from-gray-900/50" />
+          <div className="absolute left-1/2 top-0 h-125 w-200 -translate-x-1/2 rounded-full bg-linear-to-b from-brand-100/60 to-transparent blur-3xl dark:from-brand-900/30" />
         </div>
 
         <div className="mx-auto max-w-3xl text-center">
           {/* Badge */}
-          <div className="animate-fade-in-up mb-6 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-4 py-1.5 text-xs font-medium text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
-            <Activity size={14} className="text-green-500" />
+          <div className="animate-fade-in-up mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-1.5 text-xs font-medium text-gray-600 shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
+            <Activity size={14} className="text-brand-500" />
             Open-source URL shortener
           </div>
 
@@ -127,14 +127,14 @@ export default function HomePage() {
           <div className="animate-fade-in-up animation-delay-300 mt-8 flex flex-wrap items-center justify-center gap-3">
             <a
               href="#shorten"
-              className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:bg-gray-800 hover:shadow-xl dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+              className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:bg-brand-600 hover:shadow-xl"
             >
               Create your short link
               <ArrowRight size={16} />
             </a>
             <Link
               href="/dashboard"
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-6 py-3 text-sm font-semibold text-gray-700 transition-all hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-900"
+              className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-6 py-3 text-sm font-semibold text-gray-700 transition-all hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-brand-800 dark:hover:bg-brand-900/20 dark:hover:text-brand-300"
             >
               View dashboard
             </Link>
@@ -143,13 +143,13 @@ export default function HomePage() {
           {/* Trust indicators */}
           <div className="animate-fade-in-up animation-delay-400 mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-gray-400 dark:text-gray-500">
             <span className="flex items-center gap-1.5">
-              <Zap size={12} /> Fast redirects
+              <Zap size={12} className="text-brand-500" /> Fast redirects
             </span>
             <span className="flex items-center gap-1.5">
-              <BarChart3 size={12} /> Real-time analytics
+              <BarChart3 size={12} className="text-brand-500" /> Real-time analytics
             </span>
             <span className="flex items-center gap-1.5">
-              <Tag size={12} /> Custom aliases
+              <Tag size={12} className="text-brand-500" /> Custom aliases
             </span>
           </div>
         </div>
@@ -160,10 +160,10 @@ export default function HomePage() {
       {/* ============================================================ */}
       <Section id="shorten" className="relative pb-20 sm:pb-28">
         <div className="animate-fade-in-up animation-delay-300 mx-auto max-w-2xl">
-          <div className="glow-border rounded-2xl border border-gray-200 bg-white p-6 shadow-xl shadow-gray-200/50 sm:p-8 dark:border-gray-800 dark:bg-gray-900 dark:shadow-none">
+          <div className="glow-border rounded-2xl border border-line bg-surface p-6 shadow-xl shadow-brand-100/50 sm:p-8 dark:border-gray-800 dark:bg-gray-900 dark:shadow-none">
             <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-900 dark:bg-white">
-                <Link2 size={18} className="text-white dark:text-gray-900" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500 shadow-sm">
+                <Link2 size={18} className="text-white" />
               </div>
               <div>
                 <h2 className="text-lg font-semibold">Shorten your URL</h2>
@@ -180,9 +180,9 @@ export default function HomePage() {
       {/* ============================================================ */}
       {/*  FEATURES                                                    */}
       {/* ============================================================ */}
-      <Section className="border-t border-gray-100 py-20 dark:border-gray-900 sm:py-28">
+      <Section className="border-t border-line py-20 dark:border-gray-800 sm:py-28">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+          <p className="text-sm font-semibold uppercase tracking-widest text-brand-600 dark:text-brand-400">
             Features
           </p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
@@ -197,7 +197,7 @@ export default function HomePage() {
           {FEATURES.map(({ icon: Icon, title, desc, color, iconColor }) => (
             <div
               key={title}
-              className={`group rounded-2xl border border-gray-200 bg-linear-to-br p-6 transition-all hover:shadow-lg hover:-translate-y-0.5 dark:border-gray-800 ${color}`}
+              className={`group rounded-2xl border border-line bg-linear-to-br p-6 transition-all hover:shadow-lg hover:-translate-y-0.5 dark:border-gray-800 ${color}`}
             >
               <div
                 className={`flex h-11 w-11 items-center justify-center rounded-xl bg-white shadow-sm dark:bg-gray-900 ${iconColor}`}
@@ -218,7 +218,7 @@ export default function HomePage() {
       {/* ============================================================ */}
       <Section className="py-20 sm:py-28">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+          <p className="text-sm font-semibold uppercase tracking-widest text-brand-600 dark:text-brand-400">
             Dashboard
           </p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
@@ -230,13 +230,13 @@ export default function HomePage() {
         </div>
 
         {/* Dashboard mockup card */}
-        <div className="animate-fade-in-up mt-14 rounded-2xl border border-gray-200 bg-gray-50/50 p-4 shadow-2xl shadow-gray-200/50 sm:p-8 dark:border-gray-800 dark:bg-gray-900/50 dark:shadow-none">
+        <div className="animate-fade-in-up mt-14 rounded-2xl border border-line bg-canvas p-4 shadow-2xl shadow-brand-100/40 sm:p-8 dark:border-gray-800 dark:bg-gray-950/50 dark:shadow-none">
           {/* Fake browser chrome */}
           <div className="mb-6 flex items-center gap-2">
+            <div className="h-3 w-3 rounded-full bg-brand-400" />
+            <div className="h-3 w-3 rounded-full bg-brand-300" />
             <div className="h-3 w-3 rounded-full bg-gray-300 dark:bg-gray-700" />
-            <div className="h-3 w-3 rounded-full bg-gray-300 dark:bg-gray-700" />
-            <div className="h-3 w-3 rounded-full bg-gray-300 dark:bg-gray-700" />
-            <div className="ml-4 h-5 flex-1 rounded-md bg-gray-200 dark:bg-gray-800" />
+            <div className="ml-4 h-5 flex-1 rounded-md bg-surface shadow-sm dark:bg-gray-900" />
           </div>
 
           {/* Stats row */}
@@ -265,11 +265,13 @@ export default function HomePage() {
             ].map(({ label, value, icon: Icon }) => (
               <div
                 key={label}
-                className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950"
+                className="rounded-xl border border-line bg-surface p-4 shadow-sm dark:border-gray-800 dark:bg-gray-950"
               >
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
-                  <Icon size={14} className="text-gray-400 dark:text-gray-600" />
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-brand-50 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400">
+                    <Icon size={12} />
+                  </span>
                 </div>
                 <p className="mt-2 text-2xl font-bold tabular-nums">{value}</p>
               </div>
@@ -277,13 +279,13 @@ export default function HomePage() {
           </div>
 
           {/* Chart placeholder */}
-          <div className="mt-4 rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950">
+          <div className="mt-4 rounded-xl border border-line bg-surface p-6 shadow-sm dark:border-gray-800 dark:bg-gray-950">
             <p className="mb-4 text-sm font-medium">Clicks over time</p>
             <div className="flex h-32 items-end gap-1.5">
               {[40, 65, 45, 80, 55, 90, 70, 95, 60, 75, 85, 50].map((h, i) => (
                 <div
                   key={i}
-                  className="flex-1 rounded-t-sm bg-linear-to-t from-gray-200 to-gray-100 dark:from-gray-800 dark:to-gray-700"
+                  className="flex-1 rounded-t-sm bg-linear-to-t from-brand-500 to-brand-300"
                   style={{ height: `${h}%` }}
                 />
               ))}
@@ -317,7 +319,7 @@ export default function HomePage() {
             ].map(({ title, items }) => (
               <div
                 key={title}
-                className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950"
+                className="rounded-xl border border-line bg-surface p-4 shadow-sm dark:border-gray-800 dark:bg-gray-950"
               >
                 <p className="mb-3 text-xs font-medium text-gray-500 dark:text-gray-400">
                   {title}
@@ -327,7 +329,7 @@ export default function HomePage() {
                     <span className="text-sm">{item}</span>
                     <div className="h-1.5 w-16 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
                       <div
-                        className="h-full rounded-full bg-gray-900 dark:bg-gray-400"
+                        className="h-full rounded-full bg-brand-500"
                         style={{ width: `${100 - i * 30}%` }}
                       />
                     </div>
@@ -342,9 +344,9 @@ export default function HomePage() {
       {/* ============================================================ */}
       {/*  HOW IT WORKS                                                */}
       {/* ============================================================ */}
-      <Section className="border-t border-gray-100 py-20 dark:border-gray-900 sm:py-28">
+      <Section className="border-t border-line py-20 dark:border-gray-800 sm:py-28">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+          <p className="text-sm font-semibold uppercase tracking-widest text-brand-600 dark:text-brand-400">
             How it works
           </p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
@@ -357,9 +359,12 @@ export default function HomePage() {
             <div key={num} className="relative text-center">
               {/* Connector line */}
               {i < STEPS.length - 1 && (
-                <div className="absolute left-[calc(50%+40px)] top-6 hidden h-px w-[calc(100%-80px)] bg-gray-200 sm:block dark:bg-gray-800" />
+                <div
+                  key={i}
+                  className={`h-px w-[calc(100%-80px)] bg-line sm:block dark:bg-gray-800 ${i < STEPS.length - 1 ? 'absolute left-[calc(50%+40px)] top-6 hidden' : 'hidden'}`}
+                />
               )}
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-gray-200 bg-white text-sm font-bold text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-white">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-line bg-surface text-sm font-bold text-brand-600 shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:text-brand-400">
                 {num}
               </div>
               <h3 className="mt-5 text-base font-semibold">{title}</h3>
@@ -374,7 +379,7 @@ export default function HomePage() {
       {/* ============================================================ */}
       <Section className="py-20 sm:py-28">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+          <p className="text-sm font-semibold uppercase tracking-widest text-brand-600 dark:text-brand-400">
             Built for speed
           </p>
           <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
@@ -398,11 +403,11 @@ export default function HomePage() {
             return (
               <div
                 key={name}
-                className="group rounded-2xl border border-gray-200 bg-white p-5 transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
+                className="group rounded-2xl border border-line bg-surface p-5 transition-all hover:border-brand-200 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:border-brand-800"
               >
                 <Icon
                   size={20}
-                  className="text-gray-400 transition-colors group-hover:text-gray-900 dark:group-hover:text-white"
+                  className="text-brand-500 transition-colors group-hover:text-brand-600 dark:group-hover:text-brand-400"
                 />
                 <p className="mt-3 text-sm font-semibold">{name}</p>
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{desc}</p>
@@ -416,13 +421,13 @@ export default function HomePage() {
       {/*  FINAL CTA                                                   */}
       {/* ============================================================ */}
       <Section className="py-20 sm:py-28">
-        <div className="relative overflow-hidden rounded-3xl border border-gray-200 bg-gray-50 px-6 py-16 text-center dark:border-gray-800 dark:bg-gray-900 sm:px-12">
+        <div className="relative overflow-hidden rounded-3xl border border-line bg-surface px-6 py-16 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:px-12">
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0"
           >
-            <div className="absolute -left-20 -top-20 h-60 w-60 rounded-full bg-gray-200/50 blur-3xl dark:bg-gray-800/50" />
-            <div className="absolute -bottom-20 -right-20 h-60 w-60 rounded-full bg-gray-200/50 blur-3xl dark:bg-gray-800/50" />
+            <div className="absolute -left-20 -top-20 h-60 w-60 rounded-full bg-brand-100/60 blur-3xl dark:bg-brand-900/30" />
+            <div className="absolute -bottom-20 -right-20 h-60 w-60 rounded-full bg-brand-100/60 blur-3xl dark:bg-brand-900/30" />
           </div>
           <h2 className="relative text-3xl font-bold tracking-tight sm:text-4xl">
             Ready to shorten your links?
@@ -433,7 +438,7 @@ export default function HomePage() {
           <div className="relative mt-8">
             <a
               href="#shorten"
-              className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-8 py-3.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-gray-800 hover:shadow-xl dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+              className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-8 py-3.5 text-sm font-semibold text-white shadow-lg transition-all hover:bg-brand-600 hover:shadow-xl"
             >
               Create a short URL
               <ChevronRight size={16} />
@@ -445,7 +450,7 @@ export default function HomePage() {
       {/* ============================================================ */}
       {/*  FOOTER                                                      */}
       {/* ============================================================ */}
-      <footer className="border-t border-gray-200 dark:border-gray-800">
+      <footer className="border-t border-line dark:border-gray-800">
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
           <div className="grid gap-8 sm:grid-cols-3">
             {/* Brand */}
@@ -460,7 +465,7 @@ export default function HomePage() {
 
             {/* Product */}
             <div>
-              <p className="text-sm font-semibold">Product</p>
+              <p className="text-sm font-semibold text-brand-600 dark:text-brand-400">Product</p>
               <ul className="mt-3 space-y-2">
                 {[
                   { href: '/dashboard', label: 'Dashboard' },
@@ -470,7 +475,7 @@ export default function HomePage() {
                   <li key={href}>
                     <Link
                       href={href}
-                      className="text-sm text-gray-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                      className="text-sm text-gray-500 transition-colors hover:text-brand-600 dark:text-gray-400 dark:hover:text-brand-400"
                     >
                       {label}
                     </Link>
@@ -481,12 +486,12 @@ export default function HomePage() {
 
             {/* Resources */}
             <div>
-              <p className="text-sm font-semibold">Resources</p>
+              <p className="text-sm font-semibold text-brand-600 dark:text-brand-400">Resources</p>
               <ul className="mt-3 space-y-2">
                 <li>
                   <Link
                     href="/dashboard"
-                    className="text-sm text-gray-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                    className="text-sm text-gray-500 transition-colors hover:text-brand-600 dark:text-gray-400 dark:hover:text-brand-400"
                   >
                     Documentation
                   </Link>
@@ -496,7 +501,7 @@ export default function HomePage() {
                     href="https://github.com/nayan-kunwar/shortly"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-gray-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+                    className="text-sm text-gray-500 transition-colors hover:text-brand-600 dark:text-gray-400 dark:hover:text-brand-400"
                   >
                     GitHub
                   </a>
@@ -505,7 +510,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="mt-10 border-t border-gray-200 pt-6 dark:border-gray-800">
+          <div className="mt-10 border-t border-line pt-6 dark:border-gray-800">
             <p className="text-center text-xs text-gray-400 dark:text-gray-500">
               &copy; {new Date().getFullYear()} Shortly. All rights reserved.
             </p>
