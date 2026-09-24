@@ -15,6 +15,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { CreateUrlForm } from '../features/urls/components/create-url-form';
+import { useAuth } from '../features/auth/auth-context';
 import { useStats } from '../features/stats/hooks/use-stats';
 import { Logo } from '../components/ui/logo';
 
@@ -88,6 +89,9 @@ function Section({
 /* ------------------------------------------------------------------ */
 export default function HomePage() {
   const stats = useStats();
+  const { user, isLoading } = useAuth();
+  // Guests funnel into signup; signed-in users scroll to their live form.
+  const createHref = user === null && !isLoading ? '/register' : '#shorten';
 
   return (
     <div className="overflow-hidden">
@@ -126,7 +130,7 @@ export default function HomePage() {
           {/* CTA row */}
           <div className="animate-fade-in-up animation-delay-300 mt-8 flex flex-wrap items-center justify-center gap-3">
             <a
-              href="#shorten"
+              href={createHref}
               className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:bg-brand-600 hover:shadow-xl"
             >
               Create your short link
@@ -172,7 +176,16 @@ export default function HomePage() {
                 </p>
               </div>
             </div>
-            <CreateUrlForm />
+            {user === null && !isLoading ? (
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                <Link href="/register" className="font-medium text-brand-600 hover:underline">
+                  Create an account
+                </Link>{' '}
+                to shorten links and see their analytics.
+              </p>
+            ) : (
+              <CreateUrlForm />
+            )}
           </div>
         </div>
       </Section>

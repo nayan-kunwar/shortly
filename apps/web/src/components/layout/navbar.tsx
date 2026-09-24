@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { NavLinks } from './nav-links';
 import { ThemeToggle } from './theme-toggle';
 import { Logo } from '../../components/ui/logo';
+import { UserMenu } from './user-menu';
 
 /** Top bar: slim, white, theme toggle. No JS except the toggle island. */
 export function Navbar() {
@@ -13,6 +14,7 @@ export function Navbar() {
         </Link>
         <div className="hidden md:block" />
         <div className="flex items-center gap-2">
+          <UserMenu />
           <ThemeToggle />
         </div>
       </div>

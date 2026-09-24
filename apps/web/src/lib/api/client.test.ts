@@ -32,6 +32,44 @@ describe('apiRequest', () => {
     expect(opts.headers).toMatchObject({ 'Content-Type': 'application/json' });
   });
 
+  it('sends the bearer token from sessionStorage', async () => {
+    sessionStorage.setItem('shortly.session', 'tok-1');
+    mockFetchOnce({ ok: true }, { status: 200, ok: true });
+    await apiRequest('/api/v1/auth/me');
+    const [, opts] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+    expect(opts.headers).toMatchObject({ Authorization: 'Bearer tok-1' });
+    sessionStorage.removeItem('shortly.session');
+  });
+
+  it('sends the guest anchor when there is no session, never alongside a bearer', async () => {
+    localStorage.setItem('shortly.guest', 'guest-1');
+    mockFetchOnce({ ok: true }, { status: 200, ok: true });
+    await apiRequest('/api/v1/urls', { method: 'POST', body: { url: 'https://example.com' } });
+    const [, opts] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+    expect(opts.headers).toMatchObject({ 'X-Guest-Token': 'guest-1' });
+    expect(opts.headers).not.toHaveProperty('Authorization');
+    localStorage.removeItem('shortly.guest');
+  });
+
+  it('prefers the bearer token over the guest anchor', async () => {
+    sessionStorage.setItem('shortly.session', 'tok-1');
+    localStorage.setItem('shortly.guest', 'guest-1');
+    mockFetchOnce({ ok: true }, { status: 200, ok: true });
+    await apiRequest('/api/v1/urls', { method: 'POST', body: { url: 'https://example.com' } });
+    const [, opts] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
+    expect(opts.headers).toMatchObject({ Authorization: 'Bearer tok-1' });
+    expect(opts.headers).not.toHaveProperty('X-Guest-Token');
+    sessionStorage.removeItem('shortly.session');
+    localStorage.removeItem('shortly.guest');
+  });
+
+  it('clears the session when the API answers 401', async () => {
+    sessionStorage.setItem('shortly.session', 'stale');
+    mockFetchOnce({ error: 'Unauthorized', message: 'Authentication required' }, { status: 401, ok: false });
+    await apiRequest('/api/v1/auth/me').catch((e: unknown) => e);
+    expect(sessionStorage.getItem('shortly.session')).toBeNull();
+  });
+
   it('maps a 409 Conflict to ShortlyApiError with code and field', async () => {
     mockFetchOnce(
       { error: 'Conflict', message: 'customAlias already exists', field: 'customAlias' },

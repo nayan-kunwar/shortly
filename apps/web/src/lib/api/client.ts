@@ -1,5 +1,7 @@
 import { getApiBaseUrl } from './env';
 import { recordApiSuccess } from './api-signal';
+import { clearToken, getToken } from '../../features/auth/session';
+import { getGuestId } from '../../features/auth/guest-store';
 
 /**
  * Typed error mirroring the backend contract (§15, §30 of the frontend spec).
@@ -36,6 +38,10 @@ export class ShortlyApiError extends Error {
   get isRateLimited(): boolean {
     return this.status === 429;
   }
+
+  get isUnauthorized(): boolean {
+    return this.status === 401;
+  }
 }
 
 export interface ApiRequestOptions {
@@ -69,11 +75,23 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       : typeof AbortSignal.any === 'function'
         ? AbortSignal.any([signal, timeoutSignal])
         : signal;
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  const token = getToken();
+  if (token !== null) {
+    headers['Authorization'] = `Bearer ${token}`;
+  } else {
+    // No session: attach the anonymous ownership anchor so creates land on
+    // the guest identity (claimable at signup). Never sent alongside a
+    // bearer token — the two identities are mutually exclusive.
+    const guestId = getGuestId();
+    if (guestId !== null) headers['X-Guest-Token'] = guestId;
+  }
   let res: Response;
   try {
     res = await fetch(`${getApiBaseUrl()}${path}`, {
       method,
-      headers: body !== undefined ? { 'Content-Type': 'application/json' } : {},
+      headers,
       body: body !== undefined ? JSON.stringify(body) : null,
       signal: combined,
     });
@@ -90,14 +108,20 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   }
 
   if (res.ok) {
-    const data = (await res.json()) as T;
-    // Evidence of connectivity for the offline banner: observed success
-    // beats the browser's connectivity signal (which false-positives).
     recordApiSuccess();
     if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
       window.dispatchEvent(new CustomEvent('shortly:api-success'));
     }
+    if (res.status === 204) return undefined as T;
+    const data = (await res.json()) as T;
     return data;
+  }
+
+  if (!res.ok && res.status === 401) {
+    clearToken();
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('shortly:unauthorized'));
+    }
   }
 
   let parsed: BackendErrorBody = {};

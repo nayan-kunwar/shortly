@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { ThemeProvider } from '../components/layout/theme-provider';
 import { QueryProvider } from '../lib/query-client/provider';
+import { AuthProvider } from '../features/auth/auth-context';
 import { AppShell } from '../components/layout/app-shell';
 
 export const metadata: Metadata = {
@@ -20,7 +21,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <ThemeProvider>
           <QueryProvider>
-            <AppShell>{children}</AppShell>
+            <AuthProvider>
+              <AppShell>{children}</AppShell>
+            </AuthProvider>
           </QueryProvider>
         </ThemeProvider>
       </body>
