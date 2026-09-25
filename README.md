@@ -184,6 +184,8 @@ cd infrastructure && docker compose up -d --build
 | `REDIS_TTL`               | `3600`                                                | Cache TTL in seconds (60-86400)   |
 | `RATE_LIMIT_WINDOW`       | `60`                                                  | Rate limit window in seconds      |
 | `RATE_LIMIT_MAX_REQUESTS` | `100`                                                 | Max requests per window per IP    |
+| `GUEST_CREATE_WINDOW_SECONDS` | `3600`                                          | Anonymous-create window in seconds |
+| `GUEST_CREATE_MAX_REQUESTS` | `10`                                              | Anonymous creates per window per IP |
 | `AUTH_SESSION_TTL_SECONDS` | `604800`                                            | Bearer session lifetime (7 days)  |
 | `LOG_LEVEL`               | `info`                                                | Log level (debug/info/warn/error) |
 | `NODE_ENV`                | `development`                                         | Environment                       |
@@ -207,9 +209,10 @@ safety.
 
 | Table           | Purpose                                                                                         |
 | --------------- | ----------------------------------------------------------------------------------------------- |
-| `urls`          | Shortened link records. `user_id` is the owner; NULL rows predate accounts and stay publicly resolvable |
+| `urls`          | Shortened link records. `user_id` is the account owner; `guest_id` anchors anonymous creates (NULL once claimed) |
 | `users`         | Accounts (`email`, `password_hash`)                                                             |
 | `sessions`      | Bearer sessions. Only the SHA-256 of the token is stored                                        |
+| `guests`        | Anonymous ownership anchors for guest-created links                                             |
 | `outbox_events` | Transactional outbox for reliable event publication (event_id, payload, published_at, attempts) |
 | `click_events`  | Raw click analytics (event_id, short_code, country, device_type, browser, referrer, clicked_at) |
 
@@ -225,7 +228,8 @@ safety.
 | `POST`   | `/api/v1/auth/login`                      | Start a session                          |
 | `POST`   | `/api/v1/auth/logout`                     | Delete the current session               |
 | `GET`    | `/api/v1/auth/me`                         | Current user                             |
-| `POST`   | `/api/v1/urls`                            | Create short URL (authenticated)         |
+| `POST`   | `/api/v1/urls`                            | Create short URL (account, or anonymous guest) |
+| `POST`   | `/api/v1/urls/claim`                      | Move a guest identity's links onto your account |
 | `GET`    | `/api/v1/urls`                            | List URLs (cursor pagination)                |
 | `GET`    | `/api/v1/urls/:code`                      | URL details                                  |
 | `GET`    | `/api/v1/urls/:code/analytics`            | Click analytics                              |
@@ -235,9 +239,12 @@ safety.
 
 ### Create URL
 
+Authenticated (Bearer session):
+
 ```bash
 curl -X POST http://localhost:3000/api/v1/urls \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{"url": "https://example.com/very/long/url"}'
 ```
 
@@ -250,6 +257,31 @@ Response:
   "originalUrl": "https://example.com/very/long/url"
 }
 ```
+
+### Guest creates and claim
+
+No token, no account needed — the response mints a `guestId` ownership
+anchor (store it; send it back as `X-Guest-Token`). Guests get generated
+codes only; custom aliases need an account. A present-but-invalid bearer
+is always 401, never silently treated as guest.
+
+```bash
+# Create as guest (first call returns a guestId)
+curl -X POST http://localhost:3000/api/v1/urls \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com/very/long/url"}'
+
+# Later, after register/login — move the guest links onto your account
+curl -X POST http://localhost:3000/api/v1/urls/claim \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"guestId": "<guest-id>"}'
+```
+
+Claiming is atomic and idempotent: only unclaimed (`user_id IS NULL`)
+rows move, so links that already belong to an account can never be taken
+over. Anonymous creates share a strict per-IP budget
+(`GUEST_CREATE_*`).
 
 ### Swagger UI
 

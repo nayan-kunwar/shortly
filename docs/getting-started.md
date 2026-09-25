@@ -148,7 +148,11 @@ pnpm --filter @shortly/web run build
 | GET | /metrics | Prometheus metrics |
 | GET | /docs.json | OpenAPI 3.0 spec (dev only) |
 | GET | /docs | Swagger UI (dev only) |
-| POST | /api/v1/urls | Create short URL |
+| POST | /api/v1/auth/register | Create an account and session |
+| POST | /api/v1/auth/login | Start a session |
+| GET | /api/v1/auth/me | Current user |
+| POST | /api/v1/urls | Create short URL (account, or anonymous guest) |
+| POST | /api/v1/urls/claim | Move a guest identity's links onto your account |
 | GET | /api/v1/urls/:code | URL details |
 | GET | /api/v1/urls/:code/analytics | Click analytics |
 | DELETE | /api/v1/urls/:code | Deactivate URL |
