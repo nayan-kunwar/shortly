@@ -61,4 +61,18 @@ describe('AppShell auth gating', () => {
     );
     expect(screen.getByText('dashboard page')).toBeTruthy();
   });
+
+  it('shows the sidebar brand mark linking to the dashboard', () => {
+    pathname = '/dashboard';
+    authState.user = { id: 'u1', email: 'a@x.com' };
+    authState.isLoading = false;
+    render(
+      <AppShell>
+        <p>dashboard page</p>
+      </AppShell>,
+    );
+    expect(screen.getByRole('link', { name: 'Shortly dashboard' }).getAttribute('href')).toBe(
+      '/dashboard',
+    );
+  });
 });

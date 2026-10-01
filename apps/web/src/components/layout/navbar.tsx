@@ -32,6 +32,9 @@ export function Navbar() {
 export function Sidebar() {
   return (
     <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-60 shrink-0 flex-col border-r border-line bg-surface p-4 md:flex dark:border-gray-800 dark:bg-gray-950">
+      <Link href="/dashboard" className="mb-6 flex items-center px-1" aria-label="Shortly dashboard">
+        <Logo size={32} />
+      </Link>
       <Link
         href="/create"
         className="mb-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-600"
