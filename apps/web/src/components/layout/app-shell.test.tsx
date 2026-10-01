@@ -62,7 +62,7 @@ describe('AppShell auth gating', () => {
     expect(screen.getByText('dashboard page')).toBeTruthy();
   });
 
-  it('shows the sidebar brand mark linking to the dashboard', () => {
+  it('shows a single sidebar brand mark linking to the dashboard', () => {
     pathname = '/dashboard';
     authState.user = { id: 'u1', email: 'a@x.com' };
     authState.isLoading = false;
@@ -74,5 +74,7 @@ describe('AppShell auth gating', () => {
     expect(screen.getByRole('link', { name: 'Shortly dashboard' }).getAttribute('href')).toBe(
       '/dashboard',
     );
+    // Exactly one brand mark: header owns it, the sidebar must not repeat it.
+    expect(screen.getAllByRole('link', { name: 'Shortly dashboard' })).toHaveLength(1);
   });
 });

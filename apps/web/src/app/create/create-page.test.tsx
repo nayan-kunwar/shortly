@@ -34,6 +34,6 @@ describe('create page', () => {
 describe('navbar', () => {
   it('renders brand and navigation', () => {
     render(<Navbar />, { wrapper });
-    expect(screen.getByRole('link', { name: 'Shortly' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Shortly dashboard' })).toBeTruthy();
   });
 });
