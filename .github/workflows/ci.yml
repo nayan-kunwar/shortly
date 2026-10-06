@@ -39,6 +39,11 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      # Typecheck (and type-aware lint) resolves @shortly/shared from its
+      # dist output, which is gitignored — build it first on fresh runners.
+      - run: pnpm --filter @shortly/shared build
+
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm format:check
