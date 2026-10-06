@@ -2,10 +2,10 @@
 
 Shortly requires **3 processes** to function fully:
 
-| Process | What it does | Required? |
-|---|---|---|
-| **API Server** | Handles HTTP requests, redirects, URL CRUD | Yes |
-| **Publisher Worker** | Reads outbox events, publishes to RabbitMQ | For analytics |
+| Process              | What it does                                | Required?     |
+| -------------------- | ------------------------------------------- | ------------- |
+| **API Server**       | Handles HTTP requests, redirects, URL CRUD  | Yes           |
+| **Publisher Worker** | Reads outbox events, publishes to RabbitMQ  | For analytics |
 | **Analytics Worker** | Consumes from RabbitMQ, writes click events | For analytics |
 
 Redirects work without the workers, but **clicks won't be counted**.
@@ -27,11 +27,11 @@ Single Node.js Process
 
 ### Render configuration
 
-| Setting | Value |
-|---|---|
-| Start Command | `cd apps/api && npm run db:migrate && node dist/server.js` |
+| Setting       | Value                                                                                 |
+| ------------- | ------------------------------------------------------------------------------------- |
+| Start Command | `cd apps/api && npm run db:migrate && node dist/server.js`                            |
 | Build Command | `pnpm install && cd packages/shared && pnpm build && cd ../../apps/api && pnpm build` |
-| Environment | `RUN_WORKERS=true` |
+| Environment   | `RUN_WORKERS=true`                                                                    |
 
 ### Required environment variables
 
@@ -72,21 +72,21 @@ If you have multiple dynos/services, run each process separately with `RUN_WORKE
 
 ### Services to create
 
-| Service | Command | Port |
-|---|---|---|
-| `api` | `node apps/api/dist/server.js` | 3000 |
-| `publisher` | `node apps/api/dist/workers/publisher.js` | none |
+| Service            | Command                                          | Port |
+| ------------------ | ------------------------------------------------ | ---- |
+| `api`              | `node apps/api/dist/server.js`                   | 3000 |
+| `publisher`        | `node apps/api/dist/workers/publisher.js`        | none |
 | `analytics-worker` | `node apps/api/dist/workers/analytics-worker.js` | none |
 
 ### Environment for each
 
 All services share the same `DATABASE_URL`, `REDIS_URL`, `RABBITMQ_URL`.
 
-| Service | Extra env vars |
-|---|---|
-| `api` | `RUN_WORKERS=false`, `PORT=3000` |
-| `publisher` | None (uses defaults) |
-| `analytics-worker` | None (uses defaults) |
+| Service            | Extra env vars                   |
+| ------------------ | -------------------------------- |
+| `api`              | `RUN_WORKERS=false`, `PORT=3000` |
+| `publisher`        | None (uses defaults)             |
+| `analytics-worker` | None (uses defaults)             |
 
 ### Advantages over single-process
 
@@ -116,7 +116,7 @@ Add to `infrastructure/docker-compose.yml` under the `api` service:
 
 ```yaml
 environment:
-  RUN_WORKERS: "false"  # Separate containers handle workers
+  RUN_WORKERS: 'false' # Separate containers handle workers
 ```
 
 ---
@@ -148,10 +148,12 @@ When you outgrow the free tier and want separate worker dynos:
 Create two new Render services:
 
 **Publisher:**
+
 - Start Command: `cd apps/api && node dist/workers/publisher.js`
 - Environment: Same `DATABASE_URL`, `REDIS_URL`, `RABBITMQ_URL` as the API
 
 **Analytics Worker:**
+
 - Start Command: `cd apps/api && node dist/workers/analytics-worker.js`
 - Environment: Same `DATABASE_URL`, `REDIS_URL`, `RABBITMQ_URL` as the API
 
@@ -218,12 +220,12 @@ User clicks short URL
 
 ### If clicks aren't being counted
 
-| Symptom | Likely cause | How to check |
-|---|---|---|
-| `outbox_events` rows with `published_at IS NULL` growing | Publisher not running | `SELECT COUNT(*) FROM outbox_events WHERE published_at IS NULL` |
-| `outbox_events` rows have `published_at` but `click_events` is empty | Analytics worker not running | Check worker logs |
-| `outbox_events` is empty | Outbox append failing silently | Check API logs for `"Outbox append failed"` |
-| `click_events` has rows but breakdowns are empty | Query issue (unlikely) | `SELECT country, COUNT(*) FROM click_events GROUP BY country` |
+| Symptom                                                              | Likely cause                   | How to check                                                    |
+| -------------------------------------------------------------------- | ------------------------------ | --------------------------------------------------------------- |
+| `outbox_events` rows with `published_at IS NULL` growing             | Publisher not running          | `SELECT COUNT(*) FROM outbox_events WHERE published_at IS NULL` |
+| `outbox_events` rows have `published_at` but `click_events` is empty | Analytics worker not running   | Check worker logs                                               |
+| `outbox_events` is empty                                             | Outbox append failing silently | Check API logs for `"Outbox append failed"`                     |
+| `click_events` has rows but breakdowns are empty                     | Query issue (unlikely)         | `SELECT country, COUNT(*) FROM click_events GROUP BY country`   |
 
 ### Debugging commands
 
@@ -248,20 +250,20 @@ SELECT device_type, COUNT(*) FROM click_events GROUP BY device_type ORDER BY cou
 
 ## Environment Variables Reference
 
-| Variable | Default | Description |
-|---|---|---|
-| `PORT` | `3000` | API server port |
-| `DATABASE_URL` | `postgres://shortly:shortly@localhost:5432/shortly` | PostgreSQL connection string |
-| `REDIS_URL` | `redis://localhost:6379` | Redis connection string |
-| `REDIS_TTL` | `3600` | Cache TTL in seconds (60–86400) |
-| `RABBITMQ_URL` | `amqp://guest:guest@localhost:5672` | RabbitMQ connection string |
-| `BASE_URL` | `http://localhost:3000` | Public base URL for short links |
-| `NODE_ENV` | `development` | `development`, `test`, or `production` |
-| `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
-| `CORS_ORIGIN` | `http://localhost:3001` | Allowed frontend origin |
-| `RATE_LIMIT_WINDOW` | `60` | Rate limit window (seconds) |
-| `RATE_LIMIT_MAX_REQUESTS` | `100` | Max requests per window |
-| `SSE_POLL_INTERVAL_MS` | `5000` | SSE analytics poll interval |
-| `SSE_MAX_CONNECTIONS` | `1000` | Max concurrent SSE connections |
-| `SSE_KEEPALIVE_MS` | `20000` | SSE keepalive ping interval |
-| `RUN_WORKERS` | `false` | Run publisher + analytics worker in same process |
+| Variable                  | Default                                             | Description                                      |
+| ------------------------- | --------------------------------------------------- | ------------------------------------------------ |
+| `PORT`                    | `3000`                                              | API server port                                  |
+| `DATABASE_URL`            | `postgres://shortly:shortly@localhost:5432/shortly` | PostgreSQL connection string                     |
+| `REDIS_URL`               | `redis://localhost:6379`                            | Redis connection string                          |
+| `REDIS_TTL`               | `3600`                                              | Cache TTL in seconds (60–86400)                  |
+| `RABBITMQ_URL`            | `amqp://guest:guest@localhost:5672`                 | RabbitMQ connection string                       |
+| `BASE_URL`                | `http://localhost:3000`                             | Public base URL for short links                  |
+| `NODE_ENV`                | `development`                                       | `development`, `test`, or `production`           |
+| `LOG_LEVEL`               | `info`                                              | `debug`, `info`, `warn`, `error`                 |
+| `CORS_ORIGIN`             | `http://localhost:3001`                             | Allowed frontend origin                          |
+| `RATE_LIMIT_WINDOW`       | `60`                                                | Rate limit window (seconds)                      |
+| `RATE_LIMIT_MAX_REQUESTS` | `100`                                               | Max requests per window                          |
+| `SSE_POLL_INTERVAL_MS`    | `5000`                                              | SSE analytics poll interval                      |
+| `SSE_MAX_CONNECTIONS`     | `1000`                                              | Max concurrent SSE connections                   |
+| `SSE_KEEPALIVE_MS`        | `20000`                                             | SSE keepalive ping interval                      |
+| `RUN_WORKERS`             | `false`                                             | Run publisher + analytics worker in same process |

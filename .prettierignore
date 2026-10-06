@@ -1,0 +1,13 @@
+# Generated or third-party artifacts prettier must not own.
+pnpm-lock.yaml
+apps/web/next-env.d.ts
+*.html
+dist/
+build/
+coverage/
+.next/
+out/
+*.tsbuildinfo
+test-results/
+playwright-report/
+blob-report/

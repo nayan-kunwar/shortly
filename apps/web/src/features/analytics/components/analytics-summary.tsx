@@ -16,9 +16,7 @@ export function AnalyticsSummary({ data }: { data: UrlAnalytics }) {
     .slice(0, 10);
 
   // This month: 1st to today
-  const thisMonthStart = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
-  )
+  const thisMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
     .toISOString()
     .slice(0, 10);
 

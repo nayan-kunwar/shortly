@@ -271,7 +271,8 @@ export class UrlRepository {
   }
 
   /** Soft-delete one owner's row. Another user's code updates nothing. */
-  async deactivate(shortCode: string, userId: string): Promise<UrlRecord | null> {    try {
+  async deactivate(shortCode: string, userId: string): Promise<UrlRecord | null> {
+    try {
       const rows = await this.db
         .update(urls)
         .set({ isActive: false })
@@ -284,7 +285,12 @@ export class UrlRepository {
     }
   }
 
-  async update(shortCode: string, patch: UpdateUrlPatch, userId: string): Promise<UrlRecord | null> {    const set: { originalUrl?: string; expiresAt?: Date | null; isActive?: boolean } = {};
+  async update(
+    shortCode: string,
+    patch: UpdateUrlPatch,
+    userId: string,
+  ): Promise<UrlRecord | null> {
+    const set: { originalUrl?: string; expiresAt?: Date | null; isActive?: boolean } = {};
     if (patch.originalUrl !== undefined) set.originalUrl = patch.originalUrl;
     if (patch.expiresAt !== undefined) set.expiresAt = patch.expiresAt;
     if (patch.isActive !== undefined) set.isActive = patch.isActive;

@@ -22,7 +22,12 @@ export async function verifyPassword(password: string, stored: string): Promise<
   if (parts.length !== 3 || parts[0] !== 'scrypt') return false;
   const saltHex = parts[1];
   const hashHex = parts[2];
-  if (saltHex === undefined || hashHex === undefined || saltHex.length === 0 || hashHex.length === 0) {
+  if (
+    saltHex === undefined ||
+    hashHex === undefined ||
+    saltHex.length === 0 ||
+    hashHex.length === 0
+  ) {
     return false;
   }
   const expected = Buffer.from(hashHex, 'hex');

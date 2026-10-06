@@ -40,9 +40,7 @@ export function Sidebar() {
       <NavLinks />
       <div className="mt-auto hidden md:block">
         <div className="border-t border-line pt-4 dark:border-gray-800">
-          <p className="text-xs text-gray-400 dark:text-gray-500">
-            Shortly — link management
-          </p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">Shortly — link management</p>
         </div>
       </div>
     </aside>

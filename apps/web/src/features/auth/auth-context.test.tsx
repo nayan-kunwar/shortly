@@ -34,7 +34,11 @@ function routeFetch(claimImpl: () => { status: number; body: unknown }): void {
     vi.fn(async (url: unknown, init?: { body?: string }) => {
       const path = String(url);
       if (path.endsWith('/api/v1/auth/login')) {
-        return { ok: true, status: 200, json: async () => ({ token: 'tok', user: { id: 'u1', email: 'a@x.com' } }) };
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ token: 'tok', user: { id: 'u1', email: 'a@x.com' } }),
+        };
       }
       if (path.endsWith('/api/v1/auth/me')) {
         return { ok: true, status: 200, json: async () => ({ id: 'u1', email: 'a@x.com' }) };
@@ -86,7 +90,11 @@ describe('claim on sign-in', () => {
     const fetchMock = vi.fn(async (url: unknown) => {
       const path = String(url);
       if (path.endsWith('/api/v1/auth/login')) {
-        return { ok: true, status: 200, json: async () => ({ token: 'tok', user: { id: 'u1', email: 'a@x.com' } }) };
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ token: 'tok', user: { id: 'u1', email: 'a@x.com' } }),
+        };
       }
       if (path.endsWith('/api/v1/auth/me')) {
         return { ok: true, status: 200, json: async () => ({ id: 'u1', email: 'a@x.com' }) };
@@ -99,6 +107,8 @@ describe('claim on sign-in', () => {
 
     await user.click(screen.getByRole('button', { name: /sign in/i }));
     await waitFor(() => expect(sessionStorage.getItem('shortly.session')).toBe('tok'));
-    expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/api/v1/urls/claim'))).toBe(false);
+    expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/api/v1/urls/claim'))).toBe(
+      false,
+    );
   });
 });

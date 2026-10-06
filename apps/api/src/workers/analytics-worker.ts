@@ -13,11 +13,7 @@ import { ClickEventRepository } from '../analytics/click-event-repository.js';
 import type { Db } from '../db/db.js';
 import { closeDb, db } from '../db/db.js';
 import { log } from '../observability/logger.js';
-import {
-  assertTopology,
-  CLICKS_QUEUE,
-  connectRabbitMQ,
-} from '../rabbitmq/connection.js';
+import { assertTopology, CLICKS_QUEUE, connectRabbitMQ } from '../rabbitmq/connection.js';
 import { env } from '../config/env.js';
 import { createRedisClient } from '../redis/client.js';
 import { enrichClick } from '../analytics/click-enrichment.js';

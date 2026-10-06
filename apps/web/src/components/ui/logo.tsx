@@ -10,14 +10,7 @@ interface LogoProps extends HTMLAttributes<HTMLSpanElement> {
 export function Logo({ size = 36, className, ...props }: LogoProps) {
   return (
     <span className={`inline-flex items-center gap-2 ${className ?? ''}`} {...props}>
-      <Image
-        src="/favicon.png"
-        alt=""
-        width={size}
-        height={size}
-        className="rounded-sm"
-        priority
-      />
+      <Image src="/favicon.png" alt="" width={size} height={size} className="rounded-sm" priority />
       <span className="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
         Shortly
       </span>

@@ -75,7 +75,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const dismissClaimNotice = useCallback(() => setClaimedCount(0), []);
 
   const accept = useCallback(
-    async (session: AuthSession) => {      setToken(session.token);
+    async (session: AuthSession) => {
+      setToken(session.token);
       setTokenState(session.token);
       queryClient.setQueryData(['auth', 'me'], session.user);
       // Claim guest links exactly once per sign-in. Non-blocking by design:

@@ -1,0 +1,136 @@
+# CI: quality gate, full test suites, production builds.
+#
+# Triggers on pushes to main and on pull requests. Playwright web e2e is
+# intentionally NOT here (needs browsers + both servers; run it locally via
+# `pnpm --filter @shortly/web test:e2e`).
+#
+# NOTE: never run dev workers (publisher / analytics-worker) while these
+# tests run. The suites share one Postgres + RabbitMQ and TRUNCATE between
+# files — a live publisher once raced the outbox suite over the same
+# broker and failed it. CI runners have no stray workers; keep it that way.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+# A new push supersedes the old run on the same branch — no queue pileup.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Fastest signal, no services: types, lint, formatting across all packages.
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        # No `version` input: action reads packageManager (pnpm@11.7.0).
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm format:check
+
+  # Full suites. API integration tests need real PG + Redis + RabbitMQ
+  # (they self-migrate and TRUNCATE a shared DB — see vitest configs).
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: shortly
+          POSTGRES_PASSWORD: shortly
+          POSTGRES_DB: shortly
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U shortly"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+      rabbitmq:
+        image: rabbitmq:3-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://shortly:shortly@localhost:5432/shortly
+      REDIS_URL: redis://localhost:6379
+      RABBITMQ_URL: amqp://guest:guest@localhost:5672
+      NODE_ENV: test
+      PORT: 3000
+      BASE_URL: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Web + API import @shortly/shared from its dist output.
+      - run: pnpm --filter @shortly/shared build
+
+      - run: pnpm --filter @shortly/api db:migrate
+      - run: pnpm --filter @shortly/api test
+
+      - run: pnpm --filter @shortly/web test
+
+  # Production builds gate last, only on green quality + tests.
+  build:
+    runs-on: ubuntu-latest
+    needs: [quality, test]
+    env:
+      # Web build throws without this (see apps/web/src/lib/api/env.ts).
+      NEXT_PUBLIC_API_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build

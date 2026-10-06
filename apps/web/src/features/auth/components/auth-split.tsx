@@ -14,13 +14,7 @@ const POINTS = [
  * Right: centered minimalist form column. AuthForm logic stays untouched —
  * this component only owns layout and the visual panel.
  */
-export function AuthSplit({
-  kicker,
-  children,
-}: {
-  kicker: string;
-  children: ReactNode;
-}) {
+export function AuthSplit({ kicker, children }: { kicker: string; children: ReactNode }) {
   return (
     <div className="flex min-h-screen bg-surface dark:bg-gray-950">
       {/* Brand panel — pure CSS visual, no image assets (retheme-safe). */}

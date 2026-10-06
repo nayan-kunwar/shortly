@@ -8,14 +8,24 @@ let sseEventsSentCounter = 0;
 
 /** Simple in-process counters (Prometheus format via http-metrics renderAllMetrics). */
 export const sseActiveConnections = {
-  inc(): void { sseActiveConnectionsGauge++; },
-  dec(): void { sseActiveConnectionsGauge = Math.max(0, sseActiveConnectionsGauge - 1); },
-  get value(): number { return sseActiveConnectionsGauge; },
+  inc(): void {
+    sseActiveConnectionsGauge++;
+  },
+  dec(): void {
+    sseActiveConnectionsGauge = Math.max(0, sseActiveConnectionsGauge - 1);
+  },
+  get value(): number {
+    return sseActiveConnectionsGauge;
+  },
 };
 
 export const sseEventsSent = {
-  inc(): void { sseEventsSentCounter++; },
-  get value(): number { return sseEventsSentCounter; },
+  inc(): void {
+    sseEventsSentCounter++;
+  },
+  get value(): number {
+    return sseEventsSentCounter;
+  },
 };
 
 /** Render SSE metrics in Prometheus text format. */

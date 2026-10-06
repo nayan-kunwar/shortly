@@ -13,30 +13,30 @@ Build a production-oriented **Bitly-like URL shortening service** that is both:
 
 Use exactly this core stack:
 
-* Node.js
-* TypeScript
-* **Express.js — REQUIRED**
-* PostgreSQL
-* Redis
-* RabbitMQ
-* Docker
-* Docker Compose
-* Vitest
-* Zod
-* OpenAPI / Swagger
+- Node.js
+- TypeScript
+- **Express.js — REQUIRED**
+- PostgreSQL
+- Redis
+- RabbitMQ
+- Docker
+- Docker Compose
+- Vitest
+- Zod
+- OpenAPI / Swagger
 
 For local load balancing, you may use:
 
-* Nginx
+- Nginx
 
 Do **NOT** use:
 
-* Fastify
-* NestJS
-* MongoDB
-* Kafka unless explicitly introduced as a future alternative
-* unnecessary microservices
-* unnecessary infrastructure
+- Fastify
+- NestJS
+- MongoDB
+- Kafka unless explicitly introduced as a future alternative
+- unnecessary microservices
+- unnecessary infrastructure
 
 Prefer simple, understandable architecture first.
 
@@ -264,17 +264,17 @@ Create a clean TypeScript/Express backend.
 
 ## Tasks
 
-* Initialize Node.js project.
-* Configure TypeScript.
-* Enable strict mode.
-* Configure **Express.js**.
-* Configure ESLint.
-* Configure Prettier.
-* Configure Vitest.
-* Add environment configuration.
-* Add `.env.example`.
-* Add `.gitignore`.
-* Create initial project structure.
+- Initialize Node.js project.
+- Configure TypeScript.
+- Enable strict mode.
+- Configure **Express.js**.
+- Configure ESLint.
+- Configure Prettier.
+- Configure Vitest.
+- Add environment configuration.
+- Add `.env.example`.
+- Add `.gitignore`.
+- Create initial project structure.
 
 Recommended structure:
 
@@ -303,10 +303,10 @@ docs/
 
 ## Deliverables
 
-* Application starts.
-* `GET /health` returns 200.
-* Tests run.
-* TypeScript compilation works.
+- Application starts.
+- `GET /health` returns 200.
+- Tests run.
+- TypeScript compilation works.
 
 Verify:
 
@@ -343,10 +343,10 @@ is_active
 
 Add:
 
-* Primary key.
-* Unique constraints.
-* Appropriate indexes.
-* Foreign keys where applicable.
+- Primary key.
+- Unique constraints.
+- Appropriate indexes.
+- Foreign keys where applicable.
 
 Do not add indexes without explaining why they exist.
 
@@ -370,20 +370,20 @@ All SQL/database access must remain inside repository/data-access code.
 
 Explain:
 
-* Primary keys.
-* Unique constraints.
-* Indexes.
-* Transactions.
-* PostgreSQL sequences.
-* Why sequence gaps are acceptable.
+- Primary keys.
+- Unique constraints.
+- Indexes.
+- Transactions.
+- PostgreSQL sequences.
+- Why sequence gaps are acceptable.
 
 Test:
 
-* Insert.
-* Lookup.
-* Uniqueness.
-* Deactivation.
-* Expiration.
+- Insert.
+- Lookup.
+- Uniqueness.
+- Deactivation.
+- Expiration.
 
 ---
 
@@ -435,10 +435,10 @@ Use Zod for validation.
 
 Validate:
 
-* URL format.
-* HTTP/HTTPS only.
-* Maximum URL length.
-* Invalid/missing fields.
+- URL format.
+- HTTP/HTTPS only.
+- Maximum URL length.
+- Invalid/missing fields.
 
 Test valid and invalid requests.
 
@@ -473,20 +473,20 @@ Initially use PostgreSQL-generated IDs.
 
 Explain:
 
-* Why random codes collide.
-* Why Base62 is compact.
-* Sequential ID leakage.
-* Predictability.
-* Distributed ID generation.
-* Snowflake-style IDs.
+- Why random codes collide.
+- Why Base62 is compact.
+- Sequential ID leakage.
+- Predictability.
+- Distributed ID generation.
+- Snowflake-style IDs.
 
 Test:
 
-* `encode(0)`.
-* Small numbers.
-* Large numbers.
-* Encode/decode round trips.
-* Invalid input.
+- `encode(0)`.
+- Small numbers.
+- Large numbers.
+- Encode/decode round trips.
+- Invalid input.
 
 ---
 
@@ -512,18 +512,18 @@ HTTP Redirect
 
 Handle:
 
-* Unknown short code.
-* Inactive URL.
-* Expired URL.
+- Unknown short code.
+- Inactive URL.
+- Expired URL.
 
 Use an appropriate redirect status.
 
 Explain:
 
-* 301.
-* 302.
-* 307.
-* 308.
+- 301.
+- 302.
+- 307.
+- 308.
 
 Explain why the selected status is appropriate for this project.
 
@@ -561,12 +561,12 @@ url:{shortCode}
 
 Requirements:
 
-* Configurable TTL.
-* Cache successful mappings.
-* Cache misses if appropriate.
-* Invalidate cache after mutations.
-* Redis connection handling.
-* Redis failure fallback.
+- Configurable TTL.
+- Cache successful mappings.
+- Cache misses if appropriate.
+- Invalidate cache after mutations.
+- Redis connection handling.
+- Redis failure fallback.
 
 Redis must never be required for correctness.
 
@@ -579,12 +579,12 @@ cache_misses
 
 Test:
 
-* Hit.
-* Miss.
-* DB fallback.
-* Cache population.
-* Invalidation.
-* Redis failure.
+- Hit.
+- Miss.
+- DB fallback.
+- Cache population.
+- Invalidation.
+- Redis failure.
 
 ---
 
@@ -607,11 +607,11 @@ Request:
 
 Requirements:
 
-* Alias validation.
-* Allowed characters.
-* Reserved words where appropriate.
-* Database-level uniqueness.
-* Concurrent request safety.
+- Alias validation.
+- Allowed characters.
+- Reserved words where appropriate.
+- Database-level uniqueness.
+- Concurrent request safety.
 
 Important:
 
@@ -656,12 +656,12 @@ Invalidate Redis after deletion/deactivation.
 
 Explain:
 
-* Soft deletion.
-* Hard deletion.
-* Lazy expiration.
-* Background cleanup.
-* Redis TTL.
-* Database cleanup.
+- Soft deletion.
+- Hard deletion.
+- Lazy expiration.
+- Background cleanup.
+- Redis TTL.
+- Database cleanup.
 
 ---
 
@@ -692,10 +692,10 @@ Do not use process-local memory.
 
 Explain:
 
-* Fixed window.
-* Sliding window.
-* Token bucket.
-* Distributed rate limiting.
+- Fixed window.
+- Sliding window.
+- Token bucket.
+- Distributed rate limiting.
 
 Implement the simplest appropriate approach first.
 
@@ -726,11 +726,11 @@ Do not synchronously perform expensive analytics processing during redirects.
 
 Discuss privacy:
 
-* IP retention.
-* IP anonymization.
-* User-agent handling.
-* Data retention.
-* Aggregation.
+- IP retention.
+- IP anonymization.
+- User-agent handling.
+- Data retention.
+- Aggregation.
 
 ---
 
@@ -760,12 +760,12 @@ RabbitMQ
 
 The outbox should support:
 
-* Event persistence.
-* Retry.
-* Publish confirmation.
-* Failure recovery.
-* Idempotent processing.
-* Cleanup of successfully published events.
+- Event persistence.
+- Retry.
+- Publish confirmation.
+- Failure recovery.
+- Idempotent processing.
+- Cleanup of successfully published events.
 
 Explain the trade-off:
 
@@ -799,12 +799,12 @@ It should:
 
 Explain:
 
-* At-least-once delivery.
-* Duplicate messages.
-* Idempotency.
-* Retry policies.
-* Dead-letter queues.
-* Message acknowledgements.
+- At-least-once delivery.
+- Duplicate messages.
+- Idempotency.
+- Retry policies.
+- Dead-letter queues.
+- Message acknowledgements.
 
 ---
 
@@ -844,12 +844,12 @@ GET /api/v1/urls/:shortCode/analytics
 
 Support:
 
-* Total clicks.
-* Clicks by day.
-* Country.
-* Device.
-* Browser.
-* Referrer.
+- Total clicks.
+- Clicks by day.
+- Country.
+- Device.
+- Browser.
+- Referrer.
 
 Example:
 
@@ -912,9 +912,9 @@ GET /metrics
 
 `/ready` should check required dependencies:
 
-* PostgreSQL.
-* Redis.
-* RabbitMQ.
+- PostgreSQL.
+- Redis.
+- RabbitMQ.
 
 Explain the difference between:
 
@@ -956,20 +956,20 @@ If the mapping cannot be resolved, return an appropriate service-unavailable res
 
 Implement:
 
-* Timeouts.
-* Appropriate retries.
-* Exponential backoff where appropriate.
-* Graceful shutdown.
-* Connection cleanup.
+- Timeouts.
+- Appropriate retries.
+- Exponential backoff where appropriate.
+- Graceful shutdown.
+- Connection cleanup.
 
 Avoid retry storms.
 
 Explain:
 
-* Fail-open vs fail-closed.
-* Dependency isolation.
-* Backpressure.
-* Cascading failures.
+- Fail-open vs fail-closed.
+- Dependency isolation.
+- Backpressure.
+- Cascading failures.
 
 ---
 
@@ -1047,12 +1047,12 @@ Run:
 
 Requirements:
 
-* Multiple Express instances.
-* Different ports.
-* Nginx reverse proxy/load balancing.
-* Health checks.
-* Round-robin or equivalent balancing.
-* No important application state stored in local memory.
+- Multiple Express instances.
+- Different ports.
+- Nginx reverse proxy/load balancing.
+- Health checks.
+- Round-robin or equivalent balancing.
+- No important application state stored in local memory.
 
 Demonstrate:
 
@@ -1068,12 +1068,12 @@ Requests continue
 
 Explain:
 
-* Stateless services.
-* Horizontal scaling.
-* Load balancing.
-* Session affinity.
-* Health checks.
-* Failure isolation.
+- Stateless services.
+- Horizontal scaling.
+- Load balancing.
+- Session affinity.
+- Health checks.
+- Failure isolation.
 
 Do not require cloud infrastructure.
 
@@ -1085,23 +1085,23 @@ Do not require cloud infrastructure.
 
 Test:
 
-* Base62.
-* Validation.
-* Expiration.
-* ID generation.
-* Rate limiter.
-* Services.
+- Base62.
+- Validation.
+- Expiration.
+- ID generation.
+- Rate limiter.
+- Services.
 
 ## Integration
 
 Test:
 
-* PostgreSQL.
-* Redis.
-* RabbitMQ.
-* Repositories.
-* Outbox.
-* Workers.
+- PostgreSQL.
+- Redis.
+- RabbitMQ.
+- Repositories.
+- Outbox.
+- Workers.
 
 ## E2E
 
@@ -1127,16 +1127,16 @@ Verify click
 
 Also test:
 
-* Expired URL.
-* Deleted URL.
-* Duplicate alias.
-* Concurrent alias creation.
-* Redis failure.
-* RabbitMQ failure.
-* Rate limiting.
-* Invalid URL.
-* Unknown code.
-* PostgreSQL failure.
+- Expired URL.
+- Deleted URL.
+- Duplicate alias.
+- Concurrent alias creation.
+- Redis failure.
+- RabbitMQ failure.
+- Rate limiting.
+- Invalid URL.
+- Unknown code.
+- PostgreSQL failure.
 
 ---
 
@@ -1157,11 +1157,11 @@ GET    /metrics
 
 Include:
 
-* Request schemas.
-* Response schemas.
-* Error schemas.
-* Examples.
-* Status codes.
+- Request schemas.
+- Response schemas.
+- Error schemas.
+- Examples.
+- Status codes.
 
 Expose Swagger UI during development.
 
@@ -1181,24 +1181,24 @@ Include:
 
 Examples:
 
-* Create short URLs.
-* Redirect users.
-* Custom aliases.
-* Expiration.
-* Deactivation.
-* Analytics.
-* Rate limiting.
+- Create short URLs.
+- Redirect users.
+- Custom aliases.
+- Expiration.
+- Deactivation.
+- Analytics.
+- Rate limiting.
 
 ## Non-functional Requirements
 
 Discuss:
 
-* Low redirect latency.
-* High availability.
-* Scalability.
-* Durability.
-* Eventual consistency of analytics.
-* Observability.
+- Low redirect latency.
+- High availability.
+- Scalability.
+- Durability.
+- Eventual consistency of analytics.
+- Observability.
 
 ## Architecture
 
@@ -1208,9 +1208,9 @@ Document every major component.
 
 Document:
 
-* URLs.
-* Click events.
-* Outbox events.
+- URLs.
+- Click events.
+- Outbox events.
 
 ## Request Flows
 
@@ -1303,13 +1303,13 @@ Assume approximately:
 
 Then estimate:
 
-* API instances.
-* Redis memory.
-* PostgreSQL storage.
-* Database IOPS.
-* Network bandwidth.
-* RabbitMQ throughput.
-* Analytics storage.
+- API instances.
+- Redis memory.
+- PostgreSQL storage.
+- Database IOPS.
+- Network bandwidth.
+- RabbitMQ throughput.
+- Analytics storage.
 
 Clearly distinguish:
 
@@ -1397,11 +1397,11 @@ Multi-region
 
 For every stage explain:
 
-* What bottleneck exists.
-* Why the change is necessary.
-* What problem it solves.
-* What complexity it introduces.
-* Whether the change is actually justified.
+- What bottleneck exists.
+- Why the change is necessary.
+- What problem it solves.
+- What complexity it introduces.
+- Whether the change is actually justified.
 
 Do not add distributed complexity just because traffic increased slightly.
 
@@ -1417,12 +1417,12 @@ A CDN may help with extremely hot redirect traffic.
 
 Discuss:
 
-* Cacheability.
-* TTL.
-* Invalidation.
-* Custom aliases.
-* Expiration.
-* Why CDN caching redirects can be tricky.
+- Cacheability.
+- TTL.
+- Invalidation.
+- Custom aliases.
+- Expiration.
+- Why CDN caching redirects can be tricky.
 
 ## DNS / Global Traffic Routing
 
@@ -1438,47 +1438,47 @@ Global DNS
 
 Discuss:
 
-* Latency-based routing.
-* Failover.
-* Regional outages.
-* Data consistency.
+- Latency-based routing.
+- Failover.
+- Regional outages.
+- Data consistency.
 
 ## Redis Cluster
 
 Discuss:
 
-* Partitioning.
-* Replication.
-* Failover.
-* Hot keys.
+- Partitioning.
+- Replication.
+- Failover.
+- Hot keys.
 
 ## Database Sharding
 
 Discuss:
 
-* Shard key.
-* Consistent hashing.
-* Rebalancing.
-* Hot partitions.
-* Cross-shard queries.
+- Shard key.
+- Consistent hashing.
+- Rebalancing.
+- Hot partitions.
+- Cross-shard queries.
 
 ## Distributed ID Generation
 
 Discuss:
 
-* Snowflake-style IDs.
-* Timestamp-based IDs.
-* Worker IDs.
-* Clock issues.
+- Snowflake-style IDs.
+- Timestamp-based IDs.
+- Worker IDs.
+- Clock issues.
 
 ## ClickHouse
 
 Discuss:
 
-* Analytical workloads.
-* Columnar storage.
-* Aggregation performance.
-* High-volume event ingestion.
+- Analytical workloads.
+- Columnar storage.
+- Aggregation performance.
+- High-volume event ingestion.
 
 ---
 
@@ -1488,23 +1488,23 @@ Perform a serious architecture review.
 
 Look for:
 
-* Race conditions.
-* Inefficient SQL.
-* Missing indexes.
-* Cache consistency problems.
-* Cache stampedes.
-* Failure modes.
-* Retry storms.
-* Queue problems.
-* Duplicate events.
-* Missing idempotency.
-* Security issues.
-* Validation problems.
-* Poor error handling.
-* Logging problems.
-* Privacy concerns.
-* Scalability bottlenecks.
-* Unnecessary complexity.
+- Race conditions.
+- Inefficient SQL.
+- Missing indexes.
+- Cache consistency problems.
+- Cache stampedes.
+- Failure modes.
+- Retry storms.
+- Queue problems.
+- Duplicate events.
+- Missing idempotency.
+- Security issues.
+- Validation problems.
+- Poor error handling.
+- Logging problems.
+- Privacy concerns.
+- Scalability bottlenecks.
+- Unnecessary complexity.
 
 Do not simply say:
 

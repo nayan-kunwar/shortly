@@ -65,7 +65,10 @@ describe('apiRequest', () => {
 
   it('clears the session when the API answers 401', async () => {
     sessionStorage.setItem('shortly.session', 'stale');
-    mockFetchOnce({ error: 'Unauthorized', message: 'Authentication required' }, { status: 401, ok: false });
+    mockFetchOnce(
+      { error: 'Unauthorized', message: 'Authentication required' },
+      { status: 401, ok: false },
+    );
     await apiRequest('/api/v1/auth/me').catch((e: unknown) => e);
     expect(sessionStorage.getItem('shortly.session')).toBeNull();
   });

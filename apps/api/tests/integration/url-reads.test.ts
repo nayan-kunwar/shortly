@@ -27,7 +27,10 @@ afterAll(async () => {
   await closeRedis();
 });
 
-async function createMany(api: Awaited<ReturnType<typeof authedClient>>['api'], n: number): Promise<string[]> {
+async function createMany(
+  api: Awaited<ReturnType<typeof authedClient>>['api'],
+  n: number,
+): Promise<string[]> {
   const codes: string[] = [];
   for (let i = 0; i < n; i++) {
     const res = await api
@@ -69,17 +72,13 @@ describe('GET /api/v1/urls', () => {
     expect(typeof page1.body.nextCursor).toBe('string');
     expect(page1.body).not.toHaveProperty('total');
 
-    const page2 = await api.get(
-      `/api/v1/urls?limit=2&cursor=${String(page1.body.nextCursor)}`,
-    );
+    const page2 = await api.get(`/api/v1/urls?limit=2&cursor=${String(page1.body.nextCursor)}`);
     expect(page2.body.items.map((i: { shortCode: string }) => i.shortCode)).toEqual([
       created[2],
       created[1],
     ]);
 
-    const page3 = await api.get(
-      `/api/v1/urls?limit=2&cursor=${String(page2.body.nextCursor)}`,
-    );
+    const page3 = await api.get(`/api/v1/urls?limit=2&cursor=${String(page2.body.nextCursor)}`);
     expect(page3.body.items.map((i: { shortCode: string }) => i.shortCode)).toEqual([created[0]]);
     expect(page3.body.nextCursor).toBeNull();
   });
@@ -87,9 +86,7 @@ describe('GET /api/v1/urls', () => {
   it('searches across code, destination, and alias', async () => {
     const { api } = await authedClient();
     await api.post('/api/v1/urls').send({ url: 'https://github.com/pricing' });
-    await api
-      .post('/api/v1/urls')
-      .send({ url: 'https://example.com/x', customAlias: 'github' });
+    await api.post('/api/v1/urls').send({ url: 'https://example.com/x', customAlias: 'github' });
     await api.post('/api/v1/urls').send({ url: 'https://example.com/unrelated' });
 
     const res = await api.get('/api/v1/urls?search=github');

@@ -31,7 +31,9 @@ async function guestCreate(
   guestId?: string,
   extraBody: Record<string, unknown> = {},
 ) {
-  let req = request(app).post('/api/v1/urls').send({ url, ...extraBody });
+  let req = request(app)
+    .post('/api/v1/urls')
+    .send({ url, ...extraBody });
   if (guestId !== undefined) req = req.set('X-Guest-Token', guestId);
   return req;
 }
@@ -47,7 +49,9 @@ describe('guest creates', () => {
     expect(typeof res.body.guestId).toBe('string');
 
     // The link resolves publicly.
-    const redirect = await request(app).get(`/${String(res.body.shortCode)}`).redirects(0);
+    const redirect = await request(app)
+      .get(`/${String(res.body.shortCode)}`)
+      .redirects(0);
     expect(redirect.status).toBe(302);
   });
 
@@ -161,7 +165,9 @@ describe('claim', () => {
     expect(unknown.status).toBe(200);
     expect(unknown.body.claimed).toEqual([]);
 
-    const list = await request(app).get('/api/v1/urls').set('Authorization', attacker.Authorization);
+    const list = await request(app)
+      .get('/api/v1/urls')
+      .set('Authorization', attacker.Authorization);
     expect(list.body.items).toEqual([]);
   });
 
@@ -169,7 +175,9 @@ describe('claim', () => {
     const { app } = createApp();
     registerFallback(app);
 
-    const anon = await request(app).post('/api/v1/urls/claim').send({ guestId: '11111111-2222-3333-4444-555555555555' });
+    const anon = await request(app)
+      .post('/api/v1/urls/claim')
+      .send({ guestId: '11111111-2222-3333-4444-555555555555' });
     expect(anon.status).toBe(401);
 
     const auth = await registerAuth(app);

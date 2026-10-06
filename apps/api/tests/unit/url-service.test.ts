@@ -83,7 +83,10 @@ describe('UrlService.createShortUrl — collision retry', () => {
       mockAnalytics(),
     );
 
-    const result = await service.createShortUrl({ url: 'https://example.com' }, { userId: USER_ID });
+    const result = await service.createShortUrl(
+      { url: 'https://example.com' },
+      { userId: USER_ID },
+    );
 
     expect(result.shortCode).toBe('unique7x');
     expect(result.shortUrl).toBe('http://localhost:3000/unique7x');
@@ -117,9 +120,9 @@ describe('UrlService.createShortUrl — collision retry', () => {
       mockAnalytics(),
     );
 
-    await expect(service.createShortUrl({ url: 'https://example.com' }, { userId: USER_ID })).rejects.toThrow(
-      'Failed to generate a unique short code after 5 attempts',
-    );
+    await expect(
+      service.createShortUrl({ url: 'https://example.com' }, { userId: USER_ID }),
+    ).rejects.toThrow('Failed to generate a unique short code after 5 attempts');
     expect(createMock).toHaveBeenCalledTimes(5);
   });
 
@@ -134,7 +137,10 @@ describe('UrlService.createShortUrl — collision retry', () => {
     );
 
     await expect(
-      service.createShortUrl({ url: 'https://example.com', customAlias: 'taken' }, { userId: USER_ID }),
+      service.createShortUrl(
+        { url: 'https://example.com', customAlias: 'taken' },
+        { userId: USER_ID },
+      ),
     ).rejects.toThrow(ConflictError);
     expect(createMock).toHaveBeenCalledTimes(1);
   });
@@ -149,9 +155,9 @@ describe('UrlService.createShortUrl — collision retry', () => {
       mockAnalytics(),
     );
 
-    await expect(service.createShortUrl({ url: 'https://example.com' }, { userId: USER_ID })).rejects.toThrow(
-      'DB connection lost',
-    );
+    await expect(
+      service.createShortUrl({ url: 'https://example.com' }, { userId: USER_ID }),
+    ).rejects.toThrow('DB connection lost');
     expect(createMock).toHaveBeenCalledTimes(1);
   });
 
@@ -159,7 +165,12 @@ describe('UrlService.createShortUrl — collision retry', () => {
     const createMock = vi.fn().mockResolvedValue(createdRow('unique7x'));
     const cache = mockCache();
 
-    const service = new UrlService(mockRepo({ create: createMock }), cache, mockEmitter(), mockAnalytics());
+    const service = new UrlService(
+      mockRepo({ create: createMock }),
+      cache,
+      mockEmitter(),
+      mockAnalytics(),
+    );
 
     await service.createShortUrl({ url: 'https://example.com' }, { userId: USER_ID });
 

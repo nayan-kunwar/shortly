@@ -25,9 +25,7 @@ afterAll(async () => {
 describe('POST /api/v1/urls', () => {
   it('creates a short URL and answers 201 with shortCode/shortUrl/originalUrl', async () => {
     const { api } = await authedClient();
-    const res = await api
-      .post('/api/v1/urls')
-      .send({ url: 'https://example.com/very/long/url' });
+    const res = await api.post('/api/v1/urls').send({ url: 'https://example.com/very/long/url' });
 
     expect(res.status).toBe(201);
     expect(typeof res.body.shortCode).toBe('string');
@@ -48,13 +46,11 @@ describe('POST /api/v1/urls', () => {
 
   it('accepts a custom alias and future expiry', async () => {
     const { api } = await authedClient();
-    const res = await api
-      .post('/api/v1/urls')
-      .send({
-        url: 'https://github.com/',
-        customAlias: 'github',
-        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
-      });
+    const res = await api.post('/api/v1/urls').send({
+      url: 'https://github.com/',
+      customAlias: 'github',
+      expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+    });
 
     expect(res.status).toBe(201);
     expect(res.body.shortCode).toBe('github');
@@ -83,12 +79,10 @@ describe('POST /api/v1/urls', () => {
 
   it('rejects a past expiresAt with 400', async () => {
     const { api } = await authedClient();
-    const res = await api
-      .post('/api/v1/urls')
-      .send({
-        url: 'https://example.com/x',
-        expiresAt: new Date(Date.now() - 1_000).toISOString(),
-      });
+    const res = await api.post('/api/v1/urls').send({
+      url: 'https://example.com/x',
+      expiresAt: new Date(Date.now() - 1_000).toISOString(),
+    });
     expect(res.status).toBe(400);
   });
 
@@ -162,9 +156,7 @@ describe('POST /api/v1/urls', () => {
 describe('DELETE /api/v1/urls/:shortCode', () => {
   it('deactivates and the redirect becomes 410 (cache invalidated)', async () => {
     const { api } = await authedClient();
-    const created = await api
-      .post('/api/v1/urls')
-      .send({ url: 'https://example.com/doomed' });
+    const created = await api.post('/api/v1/urls').send({ url: 'https://example.com/doomed' });
     expect(created.status).toBe(201);
     const code = String(created.body.shortCode);
 
@@ -190,9 +182,7 @@ describe('DELETE /api/v1/urls/:shortCode', () => {
 
   it('is idempotent: deleting twice still answers 200 and stays 410', async () => {
     const { api } = await authedClient();
-    const created = await api
-      .post('/api/v1/urls')
-      .send({ url: 'https://example.com/twice' });
+    const created = await api.post('/api/v1/urls').send({ url: 'https://example.com/twice' });
     const code = String(created.body.shortCode);
 
     const first = await api.delete(`/api/v1/urls/${code}`);

@@ -174,23 +174,23 @@ cd infrastructure && docker compose up -d --build
 
 ## Environment Variables
 
-| Variable                  | Default                                               | Description                       |
-| ------------------------- | ----------------------------------------------------- | --------------------------------- |
-| `DATABASE_URL`            | `postgresql://shortly:shortly@localhost:5433/shortly` | PostgreSQL connection string      |
-| `REDIS_URL`               | `redis://localhost:6379`                              | Redis connection string           |
-| `RABBITMQ_URL`            | `amqp://guest:guest@localhost:5672`                   | RabbitMQ connection string        |
-| `BASE_URL`                | `http://localhost:3000`                               | Public base URL for short links   |
-| `PORT`                    | `3000`                                                | API server port                   |
-| `REDIS_TTL`               | `3600`                                                | Cache TTL in seconds (60-86400)   |
-| `RATE_LIMIT_WINDOW`       | `60`                                                  | Rate limit window in seconds      |
-| `RATE_LIMIT_MAX_REQUESTS` | `100`                                                 | Max requests per window per IP    |
-| `GUEST_CREATE_WINDOW_SECONDS` | `3600`                                          | Anonymous-create window in seconds |
-| `GUEST_CREATE_MAX_REQUESTS` | `10`                                              | Anonymous creates per window per IP |
-| `AUTH_SESSION_TTL_SECONDS` | `604800`                                            | Bearer session lifetime (7 days)  |
-| `LOG_LEVEL`               | `info`                                                | Log level (debug/info/warn/error) |
-| `NODE_ENV`                | `development`                                         | Environment                       |
-| `CORS_ORIGIN`             | `http://localhost:3001`                               | Allowed CORS origin               |
-| `RUN_WORKERS`             | `false`                                               | Start publisher + analytics worker in same process |
+| Variable                      | Default                                               | Description                                        |
+| ----------------------------- | ----------------------------------------------------- | -------------------------------------------------- |
+| `DATABASE_URL`                | `postgresql://shortly:shortly@localhost:5433/shortly` | PostgreSQL connection string                       |
+| `REDIS_URL`                   | `redis://localhost:6379`                              | Redis connection string                            |
+| `RABBITMQ_URL`                | `amqp://guest:guest@localhost:5672`                   | RabbitMQ connection string                         |
+| `BASE_URL`                    | `http://localhost:3000`                               | Public base URL for short links                    |
+| `PORT`                        | `3000`                                                | API server port                                    |
+| `REDIS_TTL`                   | `3600`                                                | Cache TTL in seconds (60-86400)                    |
+| `RATE_LIMIT_WINDOW`           | `60`                                                  | Rate limit window in seconds                       |
+| `RATE_LIMIT_MAX_REQUESTS`     | `100`                                                 | Max requests per window per IP                     |
+| `GUEST_CREATE_WINDOW_SECONDS` | `3600`                                                | Anonymous-create window in seconds                 |
+| `GUEST_CREATE_MAX_REQUESTS`   | `10`                                                  | Anonymous creates per window per IP                |
+| `AUTH_SESSION_TTL_SECONDS`    | `604800`                                              | Bearer session lifetime (7 days)                   |
+| `LOG_LEVEL`                   | `info`                                                | Log level (debug/info/warn/error)                  |
+| `NODE_ENV`                    | `development`                                         | Environment                                        |
+| `CORS_ORIGIN`                 | `http://localhost:3001`                               | Allowed CORS origin                                |
+| `RUN_WORKERS`                 | `false`                                               | Start publisher + analytics worker in same process |
 
 See `apps/api/.env.example` and `apps/web/.env.example` for full lists.
 
@@ -207,35 +207,35 @@ safety.
 
 ### Tables
 
-| Table           | Purpose                                                                                         |
-| --------------- | ----------------------------------------------------------------------------------------------- |
+| Table           | Purpose                                                                                                          |
+| --------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `urls`          | Shortened link records. `user_id` is the account owner; `guest_id` anchors anonymous creates (NULL once claimed) |
-| `users`         | Accounts (`email`, `password_hash`)                                                             |
-| `sessions`      | Bearer sessions. Only the SHA-256 of the token is stored                                        |
-| `guests`        | Anonymous ownership anchors for guest-created links                                             |
-| `outbox_events` | Transactional outbox for reliable event publication (event_id, payload, published_at, attempts) |
-| `click_events`  | Raw click analytics (event_id, short_code, country, device_type, browser, referrer, clicked_at) |
+| `users`         | Accounts (`email`, `password_hash`)                                                                              |
+| `sessions`      | Bearer sessions. Only the SHA-256 of the token is stored                                                         |
+| `guests`        | Anonymous ownership anchors for guest-created links                                                              |
+| `outbox_events` | Transactional outbox for reliable event publication (event_id, payload, published_at, attempts)                  |
+| `click_events`  | Raw click analytics (event_id, short_code, country, device_type, browser, referrer, clicked_at)                  |
 
 ## API Documentation
 
-| Method   | Path                                      | Description                                  |
-| -------- | ----------------------------------------- | -------------------------------------------- |
-| `GET`    | `/`                                       | API info                                     |
-| `GET`    | `/health`                                 | Liveness probe (no dependency checks)        |
-| `GET`    | `/ready`                                  | Readiness probe (checks PG, Redis, RabbitMQ) |
-| `GET`    | `/metrics`                                | Prometheus metrics                           |
-| `POST`   | `/api/v1/auth/register`                   | Create an account and session            |
-| `POST`   | `/api/v1/auth/login`                      | Start a session                          |
-| `POST`   | `/api/v1/auth/logout`                     | Delete the current session               |
-| `GET`    | `/api/v1/auth/me`                         | Current user                             |
-| `POST`   | `/api/v1/urls`                            | Create short URL (account, or anonymous guest) |
-| `POST`   | `/api/v1/urls/claim`                      | Move a guest identity's links onto your account |
-| `GET`    | `/api/v1/urls`                            | List URLs (cursor pagination)                |
-| `GET`    | `/api/v1/urls/:code`                      | URL details                                  |
-| `GET`    | `/api/v1/urls/:code/analytics`            | Click analytics                              |
-| `GET`    | `/api/v1/urls/:code/analytics/stream`     | Real-time analytics (SSE)                    |
-| `DELETE` | `/api/v1/urls/:code`                      | Deactivate URL                               |
-| `GET`    | `/:shortCode`                             | Redirect (302)                               |
+| Method   | Path                                  | Description                                     |
+| -------- | ------------------------------------- | ----------------------------------------------- |
+| `GET`    | `/`                                   | API info                                        |
+| `GET`    | `/health`                             | Liveness probe (no dependency checks)           |
+| `GET`    | `/ready`                              | Readiness probe (checks PG, Redis, RabbitMQ)    |
+| `GET`    | `/metrics`                            | Prometheus metrics                              |
+| `POST`   | `/api/v1/auth/register`               | Create an account and session                   |
+| `POST`   | `/api/v1/auth/login`                  | Start a session                                 |
+| `POST`   | `/api/v1/auth/logout`                 | Delete the current session                      |
+| `GET`    | `/api/v1/auth/me`                     | Current user                                    |
+| `POST`   | `/api/v1/urls`                        | Create short URL (account, or anonymous guest)  |
+| `POST`   | `/api/v1/urls/claim`                  | Move a guest identity's links onto your account |
+| `GET`    | `/api/v1/urls`                        | List URLs (cursor pagination)                   |
+| `GET`    | `/api/v1/urls/:code`                  | URL details                                     |
+| `GET`    | `/api/v1/urls/:code/analytics`        | Click analytics                                 |
+| `GET`    | `/api/v1/urls/:code/analytics/stream` | Real-time analytics (SSE)                       |
+| `DELETE` | `/api/v1/urls/:code`                  | Deactivate URL                                  |
+| `GET`    | `/:shortCode`                         | Redirect (302)                                  |
 
 ### Create URL
 
@@ -592,9 +592,9 @@ shortly/                          pnpm workspace root
 | `docs/milestone-21-capacity-planning.md`   | M21: Capacity model                     |
 | `docs/milestone-22-scaling-strategy.md`    | M22: Scaling stages                     |
 | `docs/milestone-23-architecture-review.md` | M23: Final audit                        |
-| `docs/click-event-architecture.md`         | Click event pipeline walkthrough         |
-| `docs/click-event-architecture.html`       | Interactive HTML architecture guide      |
-| `docs/sse-realtime-analytics.md`           | SSE real-time analytics deep dive        |
+| `docs/click-event-architecture.md`         | Click event pipeline walkthrough        |
+| `docs/click-event-architecture.html`       | Interactive HTML architecture guide     |
+| `docs/sse-realtime-analytics.md`           | SSE real-time analytics deep dive       |
 
 ## License
 

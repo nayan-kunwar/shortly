@@ -182,14 +182,18 @@ export async function startPublisher(db: Db): Promise<PublisherHandle> {
         log('error', 'Publisher error (retrying)', {
           error: (err as Error).message,
         });
-        await publisher.disconnect().catch(() => { /* ignore */ });
+        await publisher.disconnect().catch(() => {
+          /* ignore */
+        });
         await cancellableSleep(
           ERROR_BACKOFF_MS + Math.floor(Math.random() * 5000),
           controller.signal,
         );
       }
     }
-    await publisher.disconnect().catch(() => { /* ignore */ });
+    await publisher.disconnect().catch(() => {
+      /* ignore */
+    });
   })();
 
   log('info', 'Publisher started (combined mode)');

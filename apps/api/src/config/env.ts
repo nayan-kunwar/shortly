@@ -26,7 +26,12 @@ const envSchema = z.object({
   SSE_KEEPALIVE_MS: z.coerce.number().int().min(5000).max(120000).default(20000),
   RUN_WORKERS: z.coerce.boolean().default(false),
   /** Bearer session lifetime. Logout deletes the row before this elapses. */
-  AUTH_SESSION_TTL_SECONDS: z.coerce.number().int().min(60).max(60 * 60 * 24 * 30).default(60 * 60 * 24 * 7),
+  AUTH_SESSION_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(60)
+    .max(60 * 60 * 24 * 30)
+    .default(60 * 60 * 24 * 7),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

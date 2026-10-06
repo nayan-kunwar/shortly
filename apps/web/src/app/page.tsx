@@ -32,7 +32,9 @@ const PreviewChart = dynamic(
   () => import('../features/analytics/components/clicks-chart').then((mod) => mod.ClicksChart),
   {
     ssr: false,
-    loading: () => <div className="h-64 w-full animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />,
+    loading: () => (
+      <div className="h-64 w-full animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
+    ),
   },
 );
 
@@ -80,7 +82,11 @@ const FEATURES = [
 /* ------------------------------------------------------------------ */
 const STEPS = [
   { num: '01', title: 'Paste your URL', desc: 'Enter any long URL into the shortener.' },
-  { num: '02', title: 'Create your short link', desc: 'Generate a fast, memorable link instantly.' },
+  {
+    num: '02',
+    title: 'Create your short link',
+    desc: 'Generate a fast, memorable link instantly.',
+  },
   { num: '03', title: 'Track every click', desc: 'Monitor performance with real-time analytics.' },
 ] as const;
 
@@ -146,15 +152,13 @@ export default function HomePage() {
 
           {/* Headline */}
           <h1 className="animate-fade-in-up animation-delay-100 text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
-            Short links.{' '}
-            <span className="gradient-text">Powerful analytics.</span>
+            Short links. <span className="gradient-text">Powerful analytics.</span>
           </h1>
 
           {/* Subheadline */}
           <p className="animate-fade-in-up animation-delay-200 mx-auto mt-6 max-w-xl text-lg text-gray-500 dark:text-gray-400">
-            Create short, memorable links and understand exactly how
-            they&apos;re being used. Built for developers who care about
-            performance.
+            Create short, memorable links and understand exactly how they&apos;re being used. Built
+            for developers who care about performance.
           </p>
 
           {/* CTA row */}
@@ -347,9 +351,7 @@ export default function HomePage() {
                 key={title}
                 className="rounded-xl border border-line bg-surface p-4 shadow-sm dark:border-gray-800 dark:bg-gray-950"
               >
-                <p className="mb-3 text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {title}
-                </p>
+                <p className="mb-3 text-xs font-medium text-gray-500 dark:text-gray-400">{title}</p>
                 {items.map((item, i) => (
                   <div key={item} className="flex items-center justify-between py-1.5">
                     <span className="text-sm">{item}</span>
@@ -412,8 +414,8 @@ export default function HomePage() {
             Powered by proven technology
           </h2>
           <p className="mt-4 text-gray-500 dark:text-gray-400">
-            Redis caching for fast redirects. PostgreSQL for reliable storage.
-            RabbitMQ for async event processing.
+            Redis caching for fast redirects. PostgreSQL for reliable storage. RabbitMQ for async
+            event processing.
           </p>
         </div>
 
@@ -448,10 +450,7 @@ export default function HomePage() {
       {/* ============================================================ */}
       <Section className="py-20 sm:py-28">
         <div className="relative overflow-hidden rounded-3xl border border-line bg-surface px-6 py-16 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:px-12">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0"
-          >
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0">
             <div className="absolute -left-20 -top-20 h-60 w-60 rounded-full bg-brand-100/60 blur-3xl dark:bg-brand-900/30" />
             <div className="absolute -bottom-20 -right-20 h-60 w-60 rounded-full bg-brand-100/60 blur-3xl dark:bg-brand-900/30" />
           </div>

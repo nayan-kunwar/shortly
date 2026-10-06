@@ -110,7 +110,10 @@ export function CreateUrlForm() {
   return (
     <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} noValidate className="space-y-4">
       <div>
-        <label htmlFor="create-url" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label
+          htmlFor="create-url"
+          className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
           Original URL
         </label>
         <TextInput
@@ -124,7 +127,10 @@ export function CreateUrlForm() {
       </div>
 
       <div>
-        <label htmlFor="create-alias" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label
+          htmlFor="create-alias"
+          className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
           Custom alias <span className="font-normal text-gray-500">(optional)</span>
         </label>
         {canUseAlias ? (
@@ -141,7 +147,10 @@ export function CreateUrlForm() {
         ) : (
           <p className="rounded-lg border border-dashed border-line px-3 py-2 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
             Want a custom alias?{' '}
-            <Link href="/login" className="font-medium text-brand-600 hover:underline dark:text-brand-400">
+            <Link
+              href="/login"
+              className="font-medium text-brand-600 hover:underline dark:text-brand-400"
+            >
               Sign in
             </Link>
           </p>
@@ -149,7 +158,10 @@ export function CreateUrlForm() {
       </div>
 
       <div>
-        <label htmlFor="create-expires" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label
+          htmlFor="create-expires"
+          className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
           Expiration <span className="font-normal text-gray-500">(optional)</span>
         </label>
         <TextInput id="create-expires" type="datetime-local" {...register('expiresAt')} />

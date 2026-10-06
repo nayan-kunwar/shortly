@@ -92,7 +92,7 @@ describe('authentication', () => {
 });
 
 describe('ownership', () => {
-  it('hides another user\'s URL from details, delete, and analytics', async () => {
+  it("hides another user's URL from details, delete, and analytics", async () => {
     const owner = await authedClient();
     const other = await authedClient();
     const created = await owner.api.post('/api/v1/urls').send({ url: 'https://example.com/owned' });

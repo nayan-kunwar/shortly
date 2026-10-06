@@ -60,14 +60,20 @@ export function AuthForm({ mode, subtitle }: { mode: 'login' | 'register'; subti
         <p className="-mt-2 text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>
       )}
       <div>
-        <label htmlFor="auth-email" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label
+          htmlFor="auth-email"
+          className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
           Email
         </label>
         <TextInput id="auth-email" type="email" autoComplete="email" {...register('email')} />
         <FieldError message={errors.email?.message} />
       </div>
       <div>
-        <label htmlFor="auth-password" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label
+          htmlFor="auth-password"
+          className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
           Password
         </label>
         <TextInput
@@ -79,7 +85,12 @@ export function AuthForm({ mode, subtitle }: { mode: 'login' | 'register'; subti
         <FieldError message={errors.password?.message} />
       </div>
       <FieldError message={errors.root?.message} />
-      <Button type="submit" variant="primary" disabled={isSubmitting} className="w-full justify-center">
+      <Button
+        type="submit"
+        variant="primary"
+        disabled={isSubmitting}
+        className="w-full justify-center"
+      >
         {mode === 'login' ? 'Sign in' : 'Create account'}
       </Button>
       <p className="text-sm text-gray-600 dark:text-gray-400">

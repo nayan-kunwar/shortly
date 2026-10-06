@@ -68,9 +68,9 @@ describe('UrlRepository', () => {
         shortCode: 'dup001',
         originalUrl: 'https://example.com/b',
         customAlias: null,
-      expiresAt: null,
-      userId,
-    })
+        expiresAt: null,
+        userId,
+      })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ConflictError);
     expect((err as ConflictError).field).toBe('shortCode');
@@ -90,9 +90,9 @@ describe('UrlRepository', () => {
         shortCode: 'c2',
         originalUrl: 'https://example.com/b',
         customAlias: 'github',
-      expiresAt: null,
-      userId,
-    })
+        expiresAt: null,
+        userId,
+      })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ConflictError);
     expect((err as ConflictError).field).toBe('customAlias');

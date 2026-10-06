@@ -14,7 +14,10 @@ export function CreateResult({ result, onReset }: { result: CreatedUrl; onReset:
       {user === null && (
         <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
           Saved on this device.{' '}
-          <Link href="/register" className="font-medium text-brand-600 hover:underline dark:text-brand-400">
+          <Link
+            href="/register"
+            className="font-medium text-brand-600 hover:underline dark:text-brand-400"
+          >
             Create an account
           </Link>{' '}
           to keep your links everywhere.

@@ -1,5 +1,11 @@
 import cors from 'cors';
-import express, { type Application, type NextFunction, type Request, type RequestHandler, type Response } from 'express';
+import express, {
+  type Application,
+  type NextFunction,
+  type Request,
+  type RequestHandler,
+  type Response,
+} from 'express';
 import helmet from 'helmet';
 import { ZodError } from 'zod';
 import { createUrlsController } from './controllers/urls.controller.js';
@@ -88,8 +94,7 @@ export function createApp(deps: AppDeps = {}): AppResult {
   // CORS: function form ensures only configured origins get an ACAO header.
   // Same-origin / non-browser requests (no Origin) pass through.
   // CORS_ORIGIN can be a single URL or comma-separated list.
-  const allowedOrigins = env.CORS_ORIGIN.split(',')
-    .map((o) => o.trim().replace(/\/+$/, ''));
+  const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim().replace(/\/+$/, ''));
   app.use(
     cors({
       origin: (origin, callback) => {

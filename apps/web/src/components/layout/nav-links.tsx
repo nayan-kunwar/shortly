@@ -43,7 +43,11 @@ export function NavLinks() {
                     className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r bg-brand-500"
                   />
                 )}
-                <Icon size={18} aria-hidden="true" className={active ? 'text-brand-600 dark:text-brand-400' : ''} />
+                <Icon
+                  size={18}
+                  aria-hidden="true"
+                  className={active ? 'text-brand-600 dark:text-brand-400' : ''}
+                />
                 {item.label}
               </Link>
             </li>

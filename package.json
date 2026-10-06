@@ -12,5 +12,8 @@
     "format:check": "prettier --check .",
     "format:write": "prettier --write .",
     "clean": "pnpm -r run clean"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.6"
   }
 }

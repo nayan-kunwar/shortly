@@ -22,7 +22,9 @@ export function UserMenu() {
 
   return (
     <div className="flex items-center gap-2">
-      <span className="max-w-[12rem] truncate text-sm text-gray-600 dark:text-gray-400">{user.email}</span>
+      <span className="max-w-[12rem] truncate text-sm text-gray-600 dark:text-gray-400">
+        {user.email}
+      </span>
       <button
         type="button"
         className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-900"

@@ -84,7 +84,10 @@ describe('redirect cache (cache-aside)', () => {
     const miss = await service.resolveUrl('freshalias').catch((e: unknown) => e);
     expect(miss).toBeInstanceOf(NotFoundError);
 
-    await service.createShortUrl({ url: 'https://example.com/now', customAlias: 'freshalias' }, { userId });
+    await service.createShortUrl(
+      { url: 'https://example.com/now', customAlias: 'freshalias' },
+      { userId },
+    );
     const found = await service.resolveUrl('freshalias');
     expect(found.originalUrl).toBe('https://example.com/now');
   });
@@ -104,7 +107,10 @@ describe('redirect cache (cache-aside)', () => {
   });
 
   it('falls back to PostgreSQL when Redis is down (fail-open)', async () => {
-    const created = await service.createShortUrl({ url: 'https://example.com/fallback' }, { userId });
+    const created = await service.createShortUrl(
+      { url: 'https://example.com/fallback' },
+      { userId },
+    );
     const broken = createRedisClient('redis://localhost:6399');
     try {
       const degraded = new UrlService(

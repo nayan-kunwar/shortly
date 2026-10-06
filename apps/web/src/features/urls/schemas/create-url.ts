@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { RESERVED_ALIASES, MIN_ALIAS_LENGTH, MAX_ALIAS_LENGTH, ALIAS_PATTERN, MAX_URL_LENGTH } from '@shortly/shared';
+import {
+  RESERVED_ALIASES,
+  MIN_ALIAS_LENGTH,
+  MAX_ALIAS_LENGTH,
+  ALIAS_PATTERN,
+  MAX_URL_LENGTH,
+} from '@shortly/shared';
 
 /**
  * Mirrors the backend M2/M6 validation (never looser — §7 of the frontend spec).

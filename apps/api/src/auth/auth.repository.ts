@@ -30,10 +30,7 @@ export class AuthRepository {
 
   async createUser(email: string, passwordHash: string): Promise<UserRecord> {
     try {
-      const rows = await this.db
-        .insert(users)
-        .values({ email, passwordHash })
-        .returning();
+      const rows = await this.db.insert(users).values({ email, passwordHash }).returning();
       const row = rows[0];
       if (row === undefined) throw new Error('INSERT did not return a user');
       return row;
@@ -82,10 +79,7 @@ export class AuthRepository {
   }
 
   async guestExists(guestId: string): Promise<boolean> {
-    const rows = await this.db
-      .select({ id: guests.id })
-      .from(guests)
-      .where(eq(guests.id, guestId));
+    const rows = await this.db.select({ id: guests.id }).from(guests).where(eq(guests.id, guestId));
     return rows.length > 0;
   }
 

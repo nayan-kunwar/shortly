@@ -130,7 +130,9 @@ export class SseConnectionManager {
       if (subs.size === 0) {
         this.subscriptions.delete(channel);
         // No more clients for this channel — unsubscribe from Redis
-        void this.subscriber.punsubscribe(channel).catch(() => { /* intentionally empty */ });
+        void this.subscriber.punsubscribe(channel).catch(() => {
+          /* intentionally empty */
+        });
       }
     }
 
@@ -204,7 +206,9 @@ export class SseConnectionManager {
       this.keepalive = undefined;
     }
     this.broadcastShutdown();
-    void this.subscriber.punsubscribe().catch(() => { /* intentionally empty */ });
+    void this.subscriber.punsubscribe().catch(() => {
+      /* intentionally empty */
+    });
     log('info', 'SSE connection manager closed');
   }
 

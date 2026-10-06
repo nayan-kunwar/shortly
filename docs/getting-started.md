@@ -17,6 +17,7 @@ cd infrastructure && docker compose up -d postgres redis rabbitmq
 ```
 
 Wait for healthy:
+
 ```bash
 docker compose ps
 # shortly-postgres   healthy
@@ -53,11 +54,13 @@ Verify: `curl http://localhost:3000/health`
 ### Step 6: Start frontend (port 3001)
 
 Create the frontend env file (points to the API):
+
 ```bash
 echo "NEXT_PUBLIC_API_URL=http://localhost:3000" > apps/web/.env.local
 ```
 
 Then start:
+
 ```bash
 pnpm --filter @shortly/web run dev
 ```
@@ -89,11 +92,11 @@ One command boots everything (API, API-2, workers, Nginx, infra):
 cd infrastructure && docker compose up -d --build
 ```
 
-| Service | URL |
-|---|---|
-| API | http://localhost:3000 |
-| Load Balancer (Nginx) | http://localhost:8080 |
-| RabbitMQ Management | http://localhost:15672 (guest/guest) |
+| Service               | URL                                  |
+| --------------------- | ------------------------------------ |
+| API                   | http://localhost:3000                |
+| Load Balancer (Nginx) | http://localhost:8080                |
+| RabbitMQ Management   | http://localhost:15672 (guest/guest) |
 
 > The frontend is not included in Docker. Run it locally (Step 6 above).
 
@@ -141,36 +144,36 @@ pnpm --filter @shortly/web run build
 
 ## API Endpoints
 
-| Method | Path | Description |
-|---|---|---|
-| GET | /health | Health check |
-| GET | /ready | Readiness (PG + Redis + RabbitMQ) |
-| GET | /metrics | Prometheus metrics |
-| GET | /docs.json | OpenAPI 3.0 spec (dev only) |
-| GET | /docs | Swagger UI (dev only) |
-| POST | /api/v1/auth/register | Create an account and session |
-| POST | /api/v1/auth/login | Start a session |
-| GET | /api/v1/auth/me | Current user |
-| POST | /api/v1/urls | Create short URL (account, or anonymous guest) |
-| POST | /api/v1/urls/claim | Move a guest identity's links onto your account |
-| GET | /api/v1/urls/:code | URL details |
-| GET | /api/v1/urls/:code/analytics | Click analytics |
-| DELETE | /api/v1/urls/:code | Deactivate URL |
-| GET | /:shortCode | Redirect (302) |
+| Method | Path                         | Description                                     |
+| ------ | ---------------------------- | ----------------------------------------------- |
+| GET    | /health                      | Health check                                    |
+| GET    | /ready                       | Readiness (PG + Redis + RabbitMQ)               |
+| GET    | /metrics                     | Prometheus metrics                              |
+| GET    | /docs.json                   | OpenAPI 3.0 spec (dev only)                     |
+| GET    | /docs                        | Swagger UI (dev only)                           |
+| POST   | /api/v1/auth/register        | Create an account and session                   |
+| POST   | /api/v1/auth/login           | Start a session                                 |
+| GET    | /api/v1/auth/me              | Current user                                    |
+| POST   | /api/v1/urls                 | Create short URL (account, or anonymous guest)  |
+| POST   | /api/v1/urls/claim           | Move a guest identity's links onto your account |
+| GET    | /api/v1/urls/:code           | URL details                                     |
+| GET    | /api/v1/urls/:code/analytics | Click analytics                                 |
+| DELETE | /api/v1/urls/:code           | Deactivate URL                                  |
+| GET    | /:shortCode                  | Redirect (302)                                  |
 
 ---
 
 ## Ports
 
-| Port | Service |
-|---|---|
-| 3000 | Backend API |
-| 3001 | Frontend (Next.js) |
-| 5433 | PostgreSQL (5432 inside Docker) |
-| 6379 | Redis |
-| 5672 | RabbitMQ AMQP |
-| 15672 | RabbitMQ Management UI |
-| 8080 | Nginx Load Balancer |
+| Port  | Service                         |
+| ----- | ------------------------------- |
+| 3000  | Backend API                     |
+| 3001  | Frontend (Next.js)              |
+| 5433  | PostgreSQL (5432 inside Docker) |
+| 6379  | Redis                           |
+| 5672  | RabbitMQ AMQP                   |
+| 15672 | RabbitMQ Management UI          |
+| 8080  | Nginx Load Balancer             |
 
 ---
 

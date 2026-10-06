@@ -107,6 +107,7 @@ export function useAnalyticsStream(shortCode: string, enabled = true) {
 ```
 
 **What happens:**
+
 1. Browser opens `GET /api/v1/urls/abc123/analytics/stream` with `Accept: text/event-stream`
 2. The HTTP connection stays open — this is the SSE channel
 3. Server pushes events through this connection as they happen
@@ -147,13 +148,14 @@ async streamAnalytics(req, res, next) {
 ```
 
 **Key headers explained:**
-| Header | Why |
-|---|---|
-| `Content-Type: text/event-stream` | Tells the browser "this is SSE, parse it as events" |
-| `Cache-Control: no-cache` | Prevents proxies/browsers from caching the stream |
-| `Connection: keep-alive` | Keeps the TCP connection open |
-| `X-Accel-Buffering: no` | Nginx: disable response buffering (otherwise events pile up) |
-| `Content-Encoding: identity` | Disable compression — SSE is streamed, not buffered |
+
+| Header                            | Why                                                          |
+| --------------------------------- | ------------------------------------------------------------ |
+| `Content-Type: text/event-stream` | Tells the browser "this is SSE, parse it as events"          |
+| `Cache-Control: no-cache`         | Prevents proxies/browsers from caching the stream            |
+| `Connection: keep-alive`          | Keeps the TCP connection open                                |
+| `X-Accel-Buffering: no`           | Nginx: disable response buffering (otherwise events pile up) |
+| `Content-Encoding: identity`      | Disable compression — SSE is streamed, not buffered          |
 
 ---
 
@@ -163,8 +165,8 @@ async streamAnalytics(req, res, next) {
 
 ```typescript
 export class SseConnectionManager {
-  private connections = new Map<string, SseConnection>();      // id → connection
-  private subscriptions = new Map<string, Set<string>>();      // channel → connection IDs
+  private connections = new Map<string, SseConnection>(); // id → connection
+  private subscriptions = new Map<string, Set<string>>(); // channel → connection IDs
 
   constructor(subscriber: Redis, service: UrlService) {
     // Subscribe to ALL analytics click events via pattern
@@ -209,6 +211,7 @@ export class SseConnectionManager {
 ```
 
 **Two maps, one purpose:**
+
 - `connections` — maps connection ID to the Express Response object (for writing SSE events)
 - `subscriptions` — maps Redis channel name to set of connection IDs (for fan-out)
 
@@ -236,6 +239,7 @@ if (redis !== undefined) {
 ```
 
 **Key design decisions:**
+
 - **Fire-and-forget (`void`):** If Redis is down, SSE clients miss the update. But the data is safe in PostgreSQL. No retry, no blocking.
 - **After DB insert, not before:** The click must be in PG first, so when the SSE manager fetches stats, it includes the new click.
 - **One publish per click:** Each click gets its own Redis message. The SSE manager handles fan-out to multiple clients.
@@ -277,11 +281,13 @@ private async handleClick(shortCode: string, _rawMessage: string): Promise<void>
 **Why fetch from PG instead of forwarding the raw event?**
 
 The raw Redis message is just one click:
+
 ```json
 {"shortCode":"abc123","clickedAt":"2026-09-15T10:00:00Z","ip":"192.168.1.0",...}
 ```
 
 But the dashboard needs **full aggregated stats**:
+
 ```json
 {
   "shortCode": "abc123",
@@ -294,6 +300,7 @@ But the dashboard needs **full aggregated stats**:
 ```
 
 Fetching from PG ensures:
+
 - The stats always reflect the latest data (the click was just inserted)
 - No complex client-side merging of incremental updates
 - Consistency even if multiple clicks arrive in quick succession
@@ -321,6 +328,7 @@ private sendEvent(connId: string, event: string, data: unknown): void {
 ```
 
 **SSE wire format:**
+
 ```
 event: analytics
 data: {"shortCode":"abc123","totalClicks":42,"countries":{"IN":20,"US":15},"devices":{"mobile":30,"desktop":12},"browsers":{"Chrome":25,"Safari":12}}
@@ -330,12 +338,13 @@ data: {"shortCode":"abc123","totalClicks":42,"countries":{"IN":20,"US":15},"devi
 The `\n\n` (double newline) terminates the event. The browser's `EventSource` parser splits on this and dispatches `es.addEventListener('analytics', ...)`.
 
 **Other event types sent:**
-| Event | When | Data |
-|---|---|---|
-| `connected` | Client first connects | `{shortCode}` |
-| `analytics` | Click event processed | Full aggregated stats |
-| `shutdown` | Server shutting down | `{message:"Server shutting down"}` |
-| `:ping` | Every 30s (keepalive) | Comment — client ignores |
+
+| Event       | When                  | Data                               |
+| ----------- | --------------------- | ---------------------------------- |
+| `connected` | Client first connects | `{shortCode}`                      |
+| `analytics` | Click event processed | Full aggregated stats              |
+| `shutdown`  | Server shutting down  | `{message:"Server shutting down"}` |
+| `:ping`     | Every 30s (keepalive) | Comment — client ignores           |
 
 ---
 
@@ -356,6 +365,7 @@ es.addEventListener('analytics', () => {
 **Why invalidate instead of using the SSE data directly?**
 
 The SSE event triggers a refetch from `GET /api/v1/urls/:shortCode/analytics`. This:
+
 - Keeps the data shape consistent (same source for initial load and updates)
 - Avoids duplicating parsing/rendering logic
 - Allows the REST response to include computed fields the SSE payload doesn't have
@@ -440,6 +450,7 @@ this.keepalive = setInterval(() => {
 **SSE comments** start with `:` and are ignored by the `EventSource` API. They're just心跳 to keep the TCP connection alive through proxies.
 
 Nginx config also needs:
+
 ```nginx
 location /api/v1/urls/:shortCode/analytics/stream {
     proxy_buffering off;
@@ -463,6 +474,7 @@ function scheduleReconnect() {
 ```
 
 **Why manual backoff?** Browser `EventSource` has a built-in reconnection, but:
+
 - It retries immediately on some error types
 - It doesn't respect server-side shutdown signals
 - It doesn't reset backoff on success
@@ -473,15 +485,15 @@ The hook takes full control: close the `EventSource`, wait with backoff, create 
 
 ## Failure Modes
 
-| Failure | What happens | Data loss? |
-|---|---|---|
-| **Redis down** | SSE clients miss real-time updates | No — data safe in PG, manual refresh works |
-| **RabbitMQ down** | No events published → no SSE events | No — events wait in outbox |
-| **Analytics worker down** | No events consumed → no Redis publish → no SSE | No — events wait in RabbitMQ |
-| **PG down** | `getUrlAnalytics()` fails → SSE broadcast skipped | No — click still in outbox, will retry |
-| **SSE client disconnects** | `req.on('close')` → cleanup | N/A |
-| **Max connections reached** | Returns 503, doesn't register | N/A |
-| **Server shuts down** | Broadcasts `event: shutdown` → closes connections | N/A |
+| Failure                     | What happens                                      | Data loss?                                 |
+| --------------------------- | ------------------------------------------------- | ------------------------------------------ |
+| **Redis down**              | SSE clients miss real-time updates                | No — data safe in PG, manual refresh works |
+| **RabbitMQ down**           | No events published → no SSE events               | No — events wait in outbox                 |
+| **Analytics worker down**   | No events consumed → no Redis publish → no SSE    | No — events wait in RabbitMQ               |
+| **PG down**                 | `getUrlAnalytics()` fails → SSE broadcast skipped | No — click still in outbox, will retry     |
+| **SSE client disconnects**  | `req.on('close')` → cleanup                       | N/A                                        |
+| **Max connections reached** | Returns 503, doesn't register                     | N/A                                        |
+| **Server shuts down**       | Broadcasts `event: shutdown` → closes connections | N/A                                        |
 
 **The critical guarantee:** SSE is a **performance optimization**, not a correctness requirement. If SSE fails, the dashboard still works via manual refresh. The analytics data is always in PostgreSQL.
 
@@ -538,10 +550,11 @@ sse_events_sent_total 147
 ```
 
 **What to watch:**
-| Metric | Normal | Alert if |
-|---|---|---|
-| `sse_active_connections` | Varies (0 when no one on dashboard) | 0 when users are present |
-| `sse_events_sent_total` | Grows with click volume | Flat when clicks are happening |
+
+| Metric                   | Normal                              | Alert if                       |
+| ------------------------ | ----------------------------------- | ------------------------------ |
+| `sse_active_connections` | Varies (0 when no one on dashboard) | 0 when users are present       |
+| `sse_events_sent_total`  | Grows with click volume             | Flat when clicks are happening |
 
 ---
 
@@ -556,6 +569,7 @@ The SSE system in Shortly works like this:
 5. **Browser receives `analytics` event** → invalidates React Query cache → dashboard re-renders
 
 **Design principles:**
+
 - **SSE is a notification layer**, not a data source. The real data lives in PostgreSQL.
 - **Fire-and-forget everywhere.** Redis pub/sub failures don't block the pipeline.
 - **Redis pub/sub enables horizontal scaling.** One publish, many subscribers.

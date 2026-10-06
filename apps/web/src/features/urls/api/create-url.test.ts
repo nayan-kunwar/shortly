@@ -19,7 +19,12 @@ function mockFetchOnce(body: unknown, status: number): void {
 describe('createUrl', () => {
   it('persists a minted guest anchor from the response', async () => {
     mockFetchOnce(
-      { shortCode: 'a1', shortUrl: 'http://localhost:3000/a1', originalUrl: 'https://example.com', guestId: 'guest-9' },
+      {
+        shortCode: 'a1',
+        shortUrl: 'http://localhost:3000/a1',
+        originalUrl: 'https://example.com',
+        guestId: 'guest-9',
+      },
       201,
     );
     const res = await createUrl({ url: 'https://example.com' });
@@ -29,7 +34,8 @@ describe('createUrl', () => {
 
   it('clears a corrupt anchor and retries once', async () => {
     localStorage.setItem('shortly.guest', 'corrupt');
-    const fetchMock = vi.fn()
+    const fetchMock = vi
+      .fn()
       .mockResolvedValueOnce({
         ok: false,
         status: 400,
@@ -38,7 +44,12 @@ describe('createUrl', () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => ({ shortCode: 'b2', shortUrl: 'http://localhost:3000/b2', originalUrl: 'https://example.com', guestId: 'guest-10' }),
+        json: async () => ({
+          shortCode: 'b2',
+          shortUrl: 'http://localhost:3000/b2',
+          originalUrl: 'https://example.com',
+          guestId: 'guest-10',
+        }),
       });
     vi.stubGlobal('fetch', fetchMock);
     const res = await createUrl({ url: 'https://example.com' });

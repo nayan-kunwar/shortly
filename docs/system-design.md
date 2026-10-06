@@ -7,7 +7,7 @@ hold the per-decision reasoning; this file is the map over them.
 
 | #   | Requirement                                                   | Status                       |
 | --- | ------------------------------------------------------------- | ---------------------------- |
-| F1  | Create short URLs (`POST /api/v1/urls`, authenticated)    | M2 + auth, live              |
+| F1  | Create short URLs (`POST /api/v1/urls`, authenticated)        | M2 + auth, live              |
 | F2  | Redirect (`GET /:shortCode`, 302)                             | M4, live                     |
 | F3  | Custom aliases (validated, reserved, race-safe)               | M6, live                     |
 | F4  | Expiration (`expiresAt`, lazy) + deactivation (`DELETE`, 410) | M2/M4/M7, live               |

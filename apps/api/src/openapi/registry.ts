@@ -94,9 +94,18 @@ registry.registerPath({
     headers: z.object({ 'X-Guest-Token': z.string().uuid().optional() }),
   },
   responses: {
-    201: { description: 'Created (guestId present when a guest anchor was minted)', ...json(createdUrlSchema) },
-    400: { description: 'Validation error, or guest restriction (see code)', ...json(badRequestErrorSchema) },
-    401: { description: 'Present-but-invalid bearer (never downgraded to guest)', ...json(unauthorizedErrorSchema) },
+    201: {
+      description: 'Created (guestId present when a guest anchor was minted)',
+      ...json(createdUrlSchema),
+    },
+    400: {
+      description: 'Validation error, or guest restriction (see code)',
+      ...json(badRequestErrorSchema),
+    },
+    401: {
+      description: 'Present-but-invalid bearer (never downgraded to guest)',
+      ...json(unauthorizedErrorSchema),
+    },
     409: { description: 'Alias conflict', ...json(conflictErrorSchema) },
     429: { description: 'Rate limited (strict bucket for guests)', ...json(rateLimitErrorSchema) },
   },
@@ -109,7 +118,10 @@ registry.registerPath({
   security: bearer,
   request: { body: json(claimGuestLinksSchema) },
   responses: {
-    200: { description: 'Claimed codes (empty when nothing moved — idempotent)', ...json(claimedLinksSchema) },
+    200: {
+      description: 'Claimed codes (empty when nothing moved — idempotent)',
+      ...json(claimedLinksSchema),
+    },
     400: { description: 'Validation error', ...json(validationErrorSchema) },
     401: { description: 'Missing or invalid session', ...json(unauthorizedErrorSchema) },
     429: { description: 'Rate limited', ...json(rateLimitErrorSchema) },

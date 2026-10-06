@@ -46,19 +46,23 @@ if (env.RUN_WORKERS) {
 
   // Publisher: fire-and-forget. Outbox handles redelivery on crash,
   // so mid-batch termination on SIGTERM is safe.
-  void startPublisher(db).then((handle) => {
-    publisherHandle = handle;
-  }).catch((err) => {
-    log('error', 'Publisher failed to start', { error: (err as Error).message });
-  });
+  void startPublisher(db)
+    .then((handle) => {
+      publisherHandle = handle;
+    })
+    .catch((err) => {
+      log('error', 'Publisher failed to start', { error: (err as Error).message });
+    });
 
   // Analytics worker: has graceful stop() that flushes pending batch.
   // Pass getRedis() for SSE pub/sub (same connection as the API).
-  startAnalyticsWorker(db, env.RABBITMQ_URL, getRedis()).then((handle) => {
-    analyticsWorkerHandle = handle;
-  }).catch((err) => {
-    log('error', 'Analytics worker failed to start', { error: (err as Error).message });
-  });
+  startAnalyticsWorker(db, env.RABBITMQ_URL, getRedis())
+    .then((handle) => {
+      analyticsWorkerHandle = handle;
+    })
+    .catch((err) => {
+      log('error', 'Analytics worker failed to start', { error: (err as Error).message });
+    });
 }
 
 // Purge scheduler: periodically clean published outbox rows, old click events,

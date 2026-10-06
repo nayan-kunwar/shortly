@@ -130,16 +130,17 @@ export class UrlService {
         throw err;
       }
     }
-    throw new Error(
-      `Failed to generate a unique short code after ${String(MAX_RETRIES)} attempts`,
-    );
+    throw new Error(`Failed to generate a unique short code after ${String(MAX_RETRIES)} attempts`);
   }
 
   /**
    * Anonymous create: generated code stamped with a guest anchor.
    * Returns the anchor when one was minted so the client can store it.
    */
-  private async createGuestUrl(input: CreateUrlRequest, guestId: string | null): Promise<CreatedUrl> {
+  private async createGuestUrl(
+    input: CreateUrlRequest,
+    guestId: string | null,
+  ): Promise<CreatedUrl> {
     if (input.customAlias != null) {
       throw new BadRequestError('Sign in to use custom aliases', 'GUEST_ALIAS_FORBIDDEN');
     }
@@ -178,9 +179,7 @@ export class UrlService {
         throw err;
       }
     }
-    throw new Error(
-      `Failed to generate a unique short code after ${String(MAX_RETRIES)} attempts`,
-    );
+    throw new Error(`Failed to generate a unique short code after ${String(MAX_RETRIES)} attempts`);
   }
 
   /**
@@ -203,7 +202,11 @@ export class UrlService {
     return row;
   }
 
-  async updateUrl(shortCode: string, patch: UpdateUrlPatch, userId: string): Promise<UrlRecord | null> {
+  async updateUrl(
+    shortCode: string,
+    patch: UpdateUrlPatch,
+    userId: string,
+  ): Promise<UrlRecord | null> {
     const row = await this.repo.update(shortCode, patch, userId);
     if (row !== null) await this.cache.invalidate(shortCode);
     return row;

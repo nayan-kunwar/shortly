@@ -94,6 +94,7 @@ async redirect(req, res, next) {
 ```
 
 **Key decisions:**
+
 - **302 redirect** (not 301): Links are temporary — they can expire or be deactivated. Every click must reach us for counting.
 - **Extract request metadata**: IP, User-Agent, Referer — these become the analytics event.
 
@@ -108,16 +109,17 @@ resolveUrl('abc123', { ip, userAgent, referer })
 **File:** `apps/api/src/services/url.service.ts:209-224`
 
 The service does two things:
+
 1. **Resolve the URL** (cache-aside: Redis → PostgreSQL)
 2. **Emit a click event** (fire-and-forget)
 
 ```typescript
 async resolveUrl(shortCode, ctx) {
   const resolved = await this.doResolve(shortCode);
-  
+
   // Fire-and-forget — never awaited, never blocks redirect
   this.emitter.emit(buildClickEvent({ ...ctx, shortCode }));
-  
+
   return resolved;
 }
 ```
@@ -141,7 +143,7 @@ function buildClickEvent(ctx): ClickEvent {
     eventType: 'url.clicked',
     shortCode: ctx.shortCode,
     clickedAt: new Date().toISOString(),
-    ip: anonymizeIp(ctx.ip),        // IPv4: 192.168.1.100 → 192.168.1.0
+    ip: anonymizeIp(ctx.ip), // IPv4: 192.168.1.100 → 192.168.1.0
     userAgent: ctx.userAgent || null, // Raw — parsed later
     referer: cleanReferer(ctx.referer), // https://google.com/search?q=hi → https://google.com/search
   };
@@ -149,11 +151,12 @@ function buildClickEvent(ctx): ClickEvent {
 ```
 
 **Privacy decisions:**
-| Field | What we store | Why |
-|---|---|---|
-| `ip` | Anonymized (/24 for IPv4, /48 for IPv6) | City-level analytics survives; individual tracking doesn't |
-| `userAgent` | Raw string | Parsed downstream by analytics worker |
-| `referer` | Origin + path only | Query strings carry session tokens — stripped |
+
+| Field       | What we store                           | Why                                                        |
+| ----------- | --------------------------------------- | ---------------------------------------------------------- |
+| `ip`        | Anonymized (/24 for IPv4, /48 for IPv6) | City-level analytics survives; individual tracking doesn't |
+| `userAgent` | Raw string                              | Parsed downstream by analytics worker                      |
+| `referer`   | Origin + path only                      | Query strings carry session tokens — stripped              |
 
 ---
 
@@ -178,12 +181,15 @@ async append(eventType, payload, eventId = randomUUID()) {
 **Why the outbox pattern?**
 
 Without outbox:
+
 ```
 Redirect → INSERT click_events → Respond
 ```
+
 Problem: If the DB insert fails, we either lose the event or block the redirect.
 
 With outbox:
+
 ```
 Redirect → Append to outbox (fast, same transaction) → Respond
                                           |
@@ -210,24 +216,25 @@ Poll every 2s → Claim rows → Publish to RabbitMQ → Mark published
 async publishBatch() {
   // 1. Claim: lock rows so multiple publishers don't double-deliver
   const claimed = await this.outbox.claimBatch(100);
-  
+
   // 2. Publish: send each event to RabbitMQ with publisher confirms
   for (const row of claimed) {
-    this.channel.publish('shortly.events', 'url.clicked', 
+    this.channel.publish('shortly.events', 'url.clicked',
       Buffer.from(JSON.stringify(row.payload)),
       { persistent: true, messageId: row.eventId }
     );
   }
-  
+
   // 3. Confirm: wait for broker to acknowledge all messages
   await this.channel.waitForConfirms();
-  
+
   // 4. Mark: stamp published_at so they're skipped next poll
   await this.outbox.markPublishedBatch(ids);
 }
 ```
 
 **Claim semantics (`FOR UPDATE SKIP LOCKED`):**
+
 ```sql
 SELECT * FROM outbox_events
 WHERE published_at IS NULL
@@ -262,7 +269,7 @@ async function assertTopology(channel) {
   await channel.bindQueue('analytics.clicks.dlq', 'shortly.dlx', '#');
   await channel.assertQueue('analytics.clicks', {
     durable: true,
-    deadLetterExchange: 'shortly.dlx',  // Failed messages go here
+    deadLetterExchange: 'shortly.dlx', // Failed messages go here
   });
   await channel.bindQueue('analytics.clicks', 'shortly.events', 'url.clicked');
 }
@@ -273,6 +280,7 @@ async function assertTopology(channel) {
 **Why a DLQ?** Poison messages (malformed, unprocessable) would infinitely requeue without a DLQ. The DLQ lets operators inspect and alert on failures.
 
 **Message lifecycle:**
+
 ```
 Publisher → Exchange → Queue → Consumer → Ack (success)
                                    |
@@ -296,21 +304,21 @@ async function startAnalyticsWorker(db, amqpUrl, redis) {
   const connection = await connectRabbitMQ(amqpUrl);
   const channel = await connection.createChannel();
   await assertTopology(channel);
-  await channel.prefetch(50);  // Max 50 unacked messages per consumer
+  await channel.prefetch(50); // Max 50 unacked messages per consumer
 
   const batch = [];
-  
+
   await channel.consume('analytics.clicks', (msg) => {
     // 1. Validate (distrust the wire)
     const parsed = clickEventSchema.safeParse(body);
     if (!parsed.success) {
-      channel.reject(msg, false);  // → DLQ (poison)
+      channel.reject(msg, false); // → DLQ (poison)
       return;
     }
-    
+
     // 2. Accumulate for micro-batch
     batch.push({ msg, parsed, eventId });
-    
+
     // 3. Flush when batch is full or timer fires
     if (batch.length >= 50) flushBatch();
     else if (!flushTimer) flushTimer = setTimeout(flushBatch, 100);
@@ -321,26 +329,27 @@ async function flushBatch() {
   const toFlush = batch.splice(0, batch.length);
   try {
     // 4. Batch INSERT (one statement, not 50)
-    await repo.recordClickBatch(toFlush.map(m => ({
-      event: m.parsed,
-      eventId: m.eventId,
-    })));
-    
+    await repo.recordClickBatch(
+      toFlush.map((m) => ({
+        event: m.parsed,
+        eventId: m.eventId,
+      })),
+    );
+
     // 5. Publish to Redis for SSE (fire-and-forget)
     for (const m of toFlush) {
-      void redis.publish(`analytics:click:${m.parsed.shortCode}`, 
-        JSON.stringify(m.parsed));
+      void redis.publish(`analytics:click:${m.parsed.shortCode}`, JSON.stringify(m.parsed));
     }
-    
+
     // 6. Ack all messages
     for (const m of toFlush) channel.ack(m.msg);
   } catch (err) {
     // 7. Handle failure
     for (const m of toFlush) {
       if (m.msg.fields.redelivered) {
-        channel.reject(m.msg, false);  // Already retried → DLQ
+        channel.reject(m.msg, false); // Already retried → DLQ
       } else {
-        channel.nack(m.msg, false, true);  // First try → requeue
+        channel.nack(m.msg, false, true); // First try → requeue
       }
     }
   }
@@ -350,6 +359,7 @@ async function flushBatch() {
 **Micro-batching explained:**
 
 Without batching:
+
 ```
 Message 1 → INSERT (1 round-trip)
 Message 2 → INSERT (1 round-trip)
@@ -359,6 +369,7 @@ Message 50 → INSERT (50 round-trips)
 ```
 
 With batching:
+
 ```
 Messages 1-50 → single INSERT with 50 rows (1 round-trip)
 ```
@@ -385,7 +396,7 @@ CREATE TABLE click_events (
   browser      TEXT
 );
 
-CREATE INDEX idx_click_events_link_time 
+CREATE INDEX idx_click_events_link_time
   ON click_events (short_code, clicked_at);
 ```
 
@@ -457,10 +468,10 @@ private async handleClick(shortCode, rawMessage) {
   // 1. Find all SSE connections watching this shortCode
   const subs = this.subscriptions.get(`analytics:click:${shortCode}`);
   if (!subs || subs.size === 0) return;
-  
+
   // 2. Fetch FULL aggregated stats from PG (source of truth)
   const stats = await this.service.getUrlAnalytics(shortCode);
-  
+
   // 3. Broadcast to all connected clients
   for (const connId of subs) {
     this.sendEvent(connId, 'analytics', stats);
@@ -493,16 +504,16 @@ The frontend has two data paths:
 
 ### What happens when each component fails?
 
-| Component fails | What happens | Data loss? |
-|---|---|---|
-| **Redis (cache)** | Redirect falls back to PostgreSQL | No — PG is source of truth |
-| **Outbox append fails** | Redirect still works, click not counted | Yes — one click lost (documented trade-off) |
-| **Publisher crashes** | Unmarked outbox rows, re-delivered on restart | No — outbox guarantees retry |
-| **RabbitMQ down** | Publisher retries with backoff, outbox retains events | No — events wait in outbox |
-| **Analytics worker crashes** | Unacked messages return to queue, redelivered | No — at-least-once delivery |
-| **PostgreSQL down** | Worker nacks messages, they return to queue | Temporary — PG recovery restores flow |
-| **Redis (pub/sub) down** | SSE clients miss real-time updates | No — data safe in PG, SSE reconnects |
-| **Analytics worker fails to process** | Messages nacked (first delivery) or rejected to DLQ (redelivery) | DLQ for poison messages |
+| Component fails                       | What happens                                                     | Data loss?                                  |
+| ------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------- |
+| **Redis (cache)**                     | Redirect falls back to PostgreSQL                                | No — PG is source of truth                  |
+| **Outbox append fails**               | Redirect still works, click not counted                          | Yes — one click lost (documented trade-off) |
+| **Publisher crashes**                 | Unmarked outbox rows, re-delivered on restart                    | No — outbox guarantees retry                |
+| **RabbitMQ down**                     | Publisher retries with backoff, outbox retains events            | No — events wait in outbox                  |
+| **Analytics worker crashes**          | Unacked messages return to queue, redelivered                    | No — at-least-once delivery                 |
+| **PostgreSQL down**                   | Worker nacks messages, they return to queue                      | Temporary — PG recovery restores flow       |
+| **Redis (pub/sub) down**              | SSE clients miss real-time updates                               | No — data safe in PG, SSE reconnects        |
+| **Analytics worker fails to process** | Messages nacked (first delivery) or rejected to DLQ (redelivery) | DLQ for poison messages                     |
 
 ### The Redirect Never Blocks
 
@@ -524,7 +535,7 @@ If the outbox append fails, the error is logged and the redirect still succeeds.
 
 ```
                     CLICK EVENT LIFECYCLE
-                    
+
 User ──→ GET /abc123 ──→ [Express API]
                               │
                               ├──→ [URL Service] ──→ [Redis Cache] ──→ HIT
@@ -538,11 +549,11 @@ User ──→ GET /abc123 ──→ [Express API]
                               │                   │
                               │                   v
                               │         [outbox_events table]
-                              │         (id, event_id, payload, 
+                              │         (id, event_id, payload,
                               │          published_at=NULL)
                               │
                               └──→ 302 Redirect ──→ User sees original page
-                              
+
                     ══════════════════════════════════
                     ASYNC PIPELINE (background)
                     ══════════════════════════════════
@@ -718,6 +729,7 @@ Workers are now independent processes. Each can be scaled independently. The out
 ### Stage 4: ClickHouse for Analytics
 
 PostgreSQL works for moderate volumes. At billions of events, ClickHouse provides:
+
 - Columnar storage (10x compression)
 - Vectorized aggregation (100x faster GROUP BY)
 - Parallel ingestion (1M+ events/sec)
@@ -728,15 +740,15 @@ The analytics worker would write to ClickHouse instead of PostgreSQL. The API wo
 
 ## Metrics to Watch
 
-| Metric | Normal | Alert if |
-|---|---|---|
-| Outbox pending count | < 100 | > 1000 (publisher lagging) |
-| Outbox published count | Grows steadily | Flat (publisher stopped) |
-| RabbitMQ queue depth | < 50 | > 500 (consumer lagging) |
-| RabbitMQ consumer count | 1 | 0 (consumer disconnected) |
-| Click events inserted/min | > 0 | 0 for > 5 min |
-| SSE active connections | Varies | 0 when users are on dashboard |
-| DLQ message count | 0 | > 0 (poison messages) |
+| Metric                    | Normal         | Alert if                      |
+| ------------------------- | -------------- | ----------------------------- |
+| Outbox pending count      | < 100          | > 1000 (publisher lagging)    |
+| Outbox published count    | Grows steadily | Flat (publisher stopped)      |
+| RabbitMQ queue depth      | < 50           | > 500 (consumer lagging)      |
+| RabbitMQ consumer count   | 1              | 0 (consumer disconnected)     |
+| Click events inserted/min | > 0            | 0 for > 5 min                 |
+| SSE active connections    | Varies         | 0 when users are on dashboard |
+| DLQ message count         | 0              | > 0 (poison messages)         |
 
 ---
 

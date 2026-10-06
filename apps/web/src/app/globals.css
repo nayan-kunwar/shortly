@@ -29,7 +29,11 @@
 
 body {
   @apply antialiased;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    sans-serif;
   @apply bg-canvas text-gray-900 dark:bg-gray-950 dark:text-gray-100;
 }
 
@@ -96,7 +100,12 @@ body {
   position: absolute;
   inset: -1px;
   border-radius: inherit;
-  background: linear-gradient(135deg, rgba(250,82,97,0.2), rgba(252,107,125,0.12), rgba(250,82,97,0.05));
+  background: linear-gradient(
+    135deg,
+    rgba(250, 82, 97, 0.2),
+    rgba(252, 107, 125, 0.12),
+    rgba(250, 82, 97, 0.05)
+  );
   z-index: -1;
   opacity: 0;
   transition: opacity 0.3s ease;
