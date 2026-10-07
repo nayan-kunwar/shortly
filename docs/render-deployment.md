@@ -29,7 +29,7 @@ Single Node.js Process
 
 | Setting       | Value                                                                                 |
 | ------------- | ------------------------------------------------------------------------------------- |
-| Start Command | `cd apps/api && npm run db:migrate && node dist/server.js`                            |
+| Start Command | `cd apps/api && pnpm run db:migrate && node dist/server.js`                           |
 | Build Command | `pnpm install && cd packages/shared && pnpm build && cd ../../apps/api && pnpm build` |
 | Environment   | `RUN_WORKERS=true`                                                                    |
 
@@ -106,7 +106,7 @@ cd infrastructure
 docker compose up -d
 ```
 
-This runs 5 containers: `api`, `api-2`, `publisher`, `analytics-worker`, `nginx`.
+This runs 8 containers: `postgres`, `redis`, `rabbitmq`, `api`, `api-2`, `publisher`, `analytics-worker`, `nginx`.
 
 Workers are separate containers with automatic restart. See `infrastructure/docker-compose.yml`.
 
@@ -126,13 +126,13 @@ environment:
 ```bash
 # Terminal 1: API server
 cd apps/api
-npm run dev
+pnpm run dev
 
 # Terminal 2: Publisher worker
-npm run worker:publisher
+pnpm run worker:publisher
 
 # Terminal 3: Analytics worker
-npm run worker:analytics
+pnpm run worker:analytics
 ```
 
 All default to `RUN_WORKERS=false` — each runs independently.
@@ -250,20 +250,23 @@ SELECT device_type, COUNT(*) FROM click_events GROUP BY device_type ORDER BY cou
 
 ## Environment Variables Reference
 
-| Variable                  | Default                                             | Description                                      |
-| ------------------------- | --------------------------------------------------- | ------------------------------------------------ |
-| `PORT`                    | `3000`                                              | API server port                                  |
-| `DATABASE_URL`            | `postgres://shortly:shortly@localhost:5432/shortly` | PostgreSQL connection string                     |
-| `REDIS_URL`               | `redis://localhost:6379`                            | Redis connection string                          |
-| `REDIS_TTL`               | `3600`                                              | Cache TTL in seconds (60–86400)                  |
-| `RABBITMQ_URL`            | `amqp://guest:guest@localhost:5672`                 | RabbitMQ connection string                       |
-| `BASE_URL`                | `http://localhost:3000`                             | Public base URL for short links                  |
-| `NODE_ENV`                | `development`                                       | `development`, `test`, or `production`           |
-| `LOG_LEVEL`               | `info`                                              | `debug`, `info`, `warn`, `error`                 |
-| `CORS_ORIGIN`             | `http://localhost:3001`                             | Allowed frontend origin                          |
-| `RATE_LIMIT_WINDOW`       | `60`                                                | Rate limit window (seconds)                      |
-| `RATE_LIMIT_MAX_REQUESTS` | `100`                                               | Max requests per window                          |
-| `SSE_POLL_INTERVAL_MS`    | `5000`                                              | SSE analytics poll interval                      |
-| `SSE_MAX_CONNECTIONS`     | `1000`                                              | Max concurrent SSE connections                   |
-| `SSE_KEEPALIVE_MS`        | `20000`                                             | SSE keepalive ping interval                      |
-| `RUN_WORKERS`             | `false`                                             | Run publisher + analytics worker in same process |
+| Variable                      | Default                                             | Description                                                              |
+| ----------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------ |
+| `PORT`                        | `3000`                                              | API server port                                                          |
+| `DATABASE_URL`                | `postgres://shortly:shortly@localhost:5433/shortly` | PostgreSQL connection string (5433: host 5432 is commonly taken locally) |
+| `REDIS_URL`                   | `redis://localhost:6379`                            | Redis connection string                                                  |
+| `REDIS_TTL`                   | `3600`                                              | Cache TTL in seconds (60–86400)                                          |
+| `RABBITMQ_URL`                | `amqp://guest:guest@localhost:5672`                 | RabbitMQ connection string                                               |
+| `BASE_URL`                    | `http://localhost:3000`                             | Public base URL for short links                                          |
+| `NODE_ENV`                    | `development`                                       | `development`, `test`, or `production`                                   |
+| `LOG_LEVEL`                   | `info`                                              | `debug`, `info`, `warn`, `error`                                         |
+| `CORS_ORIGIN`                 | `http://localhost:3001`                             | Allowed frontend origin                                                  |
+| `RATE_LIMIT_WINDOW`           | `60`                                                | Rate limit window (seconds)                                              |
+| `RATE_LIMIT_MAX_REQUESTS`     | `100`                                               | Max requests per window                                                  |
+| `GUEST_CREATE_WINDOW_SECONDS` | `3600`                                              | Anonymous-create window (seconds)                                        |
+| `GUEST_CREATE_MAX_REQUESTS`   | `10`                                                | Anonymous creates per window per IP                                      |
+| `AUTH_SESSION_TTL_SECONDS`    | `604800`                                            | Bearer session lifetime (7 days)                                         |
+| `SSE_POLL_INTERVAL_MS`        | `5000`                                              | SSE analytics poll interval                                              |
+| `SSE_MAX_CONNECTIONS`         | `1000`                                              | Max concurrent SSE connections                                           |
+| `SSE_KEEPALIVE_MS`            | `20000`                                             | SSE keepalive ping interval                                              |
+| `RUN_WORKERS`                 | `false`                                             | Run publisher + analytics worker in same process                         |

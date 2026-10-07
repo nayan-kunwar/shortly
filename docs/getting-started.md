@@ -108,14 +108,14 @@ cd infrastructure && docker compose up -d --build
 
 ```bash
 pnpm --filter @shortly/api run test
-# 89/90 pass (outbox test needs RabbitMQ running)
+# 119/119 — full suite needs PG + Redis + RabbitMQ running
 ```
 
 ### Frontend tests
 
 ```bash
 pnpm --filter @shortly/web run test
-# 40/40
+# 61/61 (jsdom)
 ```
 
 ### Typecheck
@@ -144,22 +144,29 @@ pnpm --filter @shortly/web run build
 
 ## API Endpoints
 
-| Method | Path                         | Description                                     |
-| ------ | ---------------------------- | ----------------------------------------------- |
-| GET    | /health                      | Health check                                    |
-| GET    | /ready                       | Readiness (PG + Redis + RabbitMQ)               |
-| GET    | /metrics                     | Prometheus metrics                              |
-| GET    | /docs.json                   | OpenAPI 3.0 spec (dev only)                     |
-| GET    | /docs                        | Swagger UI (dev only)                           |
-| POST   | /api/v1/auth/register        | Create an account and session                   |
-| POST   | /api/v1/auth/login           | Start a session                                 |
-| GET    | /api/v1/auth/me              | Current user                                    |
-| POST   | /api/v1/urls                 | Create short URL (account, or anonymous guest)  |
-| POST   | /api/v1/urls/claim           | Move a guest identity's links onto your account |
-| GET    | /api/v1/urls/:code           | URL details                                     |
-| GET    | /api/v1/urls/:code/analytics | Click analytics                                 |
-| DELETE | /api/v1/urls/:code           | Deactivate URL                                  |
-| GET    | /:shortCode                  | Redirect (302)                                  |
+| Method | Path                                | Description                                     |
+| ------ | ----------------------------------- | ----------------------------------------------- |
+| GET    | /health                             | Health check                                    |
+| GET    | /ready                              | Readiness (PG + Redis + RabbitMQ)               |
+| GET    | /metrics                            | Prometheus metrics                              |
+| GET    | /docs.json                          | OpenAPI 3.0 spec (dev only)                     |
+| GET    | /docs                               | Swagger UI (dev only)                           |
+| POST   | /api/v1/auth/register               | Create an account and session                   |
+| POST   | /api/v1/auth/login                  | Start a session                                 |
+| POST   | /api/v1/auth/logout                 | Delete the current session                      |
+| GET    | /api/v1/auth/me                     | Current user                                    |
+| POST   | /api/v1/urls                        | Create short URL (account, or anonymous guest)  |
+| POST   | /api/v1/urls/claim                  | Move a guest identity's links onto your account |
+| GET    | /api/v1/urls                        | List URLs (cursor page, user-scoped)            |
+| GET    | /api/v1/urls/:code                  | URL details                                     |
+| GET    | /api/v1/urls/:code/analytics        | Click analytics                                 |
+| GET    | /api/v1/urls/:code/analytics/stream | Real-time analytics (SSE)                       |
+| GET    | /api/v1/stats                       | Dashboard totals (user-scoped)                  |
+| GET    | /api/v1/stats/breakdowns            | Country/device/browser/referrer breakdowns      |
+| DELETE | /api/v1/urls/:code                  | Deactivate URL                                  |
+| GET    | /api/v1/urls/:code/analytics        | Click analytics                                 |
+| DELETE | /api/v1/urls/:code                  | Deactivate URL                                  |
+| GET    | /:shortCode                         | Redirect (302)                                  |
 
 ---
 

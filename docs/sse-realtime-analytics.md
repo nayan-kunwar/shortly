@@ -52,7 +52,7 @@ User taps short link
                           │
                           ▼
   ┌─────────────────────────────────────────────────────────┐
-  │ ⑥ Browser (EventSource)                                 │
+  │ ⑥ Browser (fetch stream + manual frame parser)          │
   │    receives: event: analytics / data: {totalClicks...}  │
   │    → invalidates React Query cache                      │
   │    → dashboard re-renders with fresh data               │
@@ -65,44 +65,50 @@ User taps short link
 
 ### Step 1: Client Opens SSE Connection
 
-When a user visits `/urls/abc123/analytics`, the frontend opens an `EventSource` connection.
+When a user visits `/urls/abc123/analytics`, the frontend opens the stream
+with `fetch`, **not** `EventSource` — `EventSource` cannot set request
+headers, and the stream requires the `Authorization: Bearer` session token.
 
 **Frontend hook:** `apps/web/src/features/analytics/hooks/use-analytics-stream.ts`
 
 ```typescript
-export function useAnalyticsStream(shortCode: string, enabled = true) {
-  const queryClient = useQueryClient();
-  const [status, setStatus] = useState<SseStatus>('disconnected');
+async function connect(): Promise<void> {
+  setStatus('connecting');
+  const headers: Record<string, string> = { Accept: 'text/event-stream' };
+  const token = getToken();
+  if (token !== null) headers['Authorization'] = `Bearer ${token}`;
 
-  useEffect(() => {
-    if (!enabled) return;
+  const res = await fetch(getSseAnalyticsUrl(shortCode), { headers, signal });
+  if (!res.ok || res.body === null) {
+    setStatus('error');
+    scheduleReconnect(); // exponential backoff: 1s → 2s → 4s → … → 30s max
+    return;
+  }
 
-    function connect() {
-      setStatus('connecting');
-      const url = getSseAnalyticsUrl(shortCode);
-      // e.g. http://localhost:3000/api/v1/urls/abc123/analytics/stream
-      const es = new EventSource(url);
-
-      es.addEventListener('connected', () => {
-        setStatus('connected');
-        retryDelayRef.current = 1000; // reset backoff
-      });
-
-      es.addEventListener('analytics', () => {
+  // Manual SSE framing: split the byte stream on blank lines, parse the
+  // `event:` line of each frame.
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const frames = buffer.split('\n\n');
+    buffer = frames.pop() ?? '';
+    for (const frame of frames) {
+      const event = frame
+        .split('\n')
+        .find((line) => line.startsWith('event:'))
+        ?.slice('event:'.length)
+        .trim();
+      if (event === 'connected') setStatus('connected');
+      if (event === 'analytics') {
         // Server sent new stats — invalidate cache so React Query refetches
         void queryClient.invalidateQueries({ queryKey: ['analytics', shortCode] });
-      });
-
-      es.addEventListener('error', () => {
-        setStatus('error');
-        es.close();
-        scheduleReconnect(); // exponential backoff: 1s → 2s → 4s → ... → 30s max
-      });
+      }
     }
-
-    connect();
-    // cleanup: es.close() on unmount
-  }, [shortCode, enabled, queryClient]);
+  }
 }
 ```
 
@@ -116,7 +122,11 @@ export function useAnalyticsStream(shortCode: string, enabled = true) {
 
 ### Step 2: Server Accepts the SSE Connection
 
-**Route:** `apps/api/src/routes/analytics-stream.ts`
+**Route:** `apps/api/src/routes/analytics-stream.ts` — mounted **behind
+`requireAuth`** (`apps/api/src/server.ts`), so anonymous streams are 401
+before any header is flushed. The controller additionally asserts link
+ownership (`manager.assertOwned(shortCode, req.userId)`) — another user's
+code answers 404, never a stream.
 
 ```typescript
 router.get('/:shortCode/analytics/stream', controller.streamAnalytics);
@@ -136,8 +146,10 @@ async streamAnalytics(req, res, next) {
   res.setHeader('Content-Encoding', 'identity'); // No compression for SSE
   res.flushHeaders(); // Send headers immediately, don't wait for body
 
-  // Register with the connection manager — this is where the magic happens
-  const connId = manager.addConnection(shortCode, res);
+  // Register with the connection manager — this is where the magic happens.
+  // The manager stores the owner's userId alongside the connection so later
+  // broadcasts stay scoped to links the connection is allowed to see.
+  const connId = manager.addConnection(shortCode, res, req.userId);
   if (connId === '') return; // 503: max connections reached
 
   // Cleanup when client disconnects (browser tab closed, network drop, etc.)
@@ -178,7 +190,7 @@ export class SseConnectionManager {
       void this.handleClick(shortCode, message);
     });
 
-    // Keepalive: send :ping comments every 30s to prevent proxy timeouts
+    // Keepalive: send :ping comments every 20s to prevent proxy timeouts
     this.keepalive = setInterval(() => {
       for (const conn of this.connections.values()) {
         conn.res.write(':ping\n\n'); // SSE comment — client ignores it
@@ -335,7 +347,7 @@ data: {"shortCode":"abc123","totalClicks":42,"countries":{"IN":20,"US":15},"devi
 
 ```
 
-The `\n\n` (double newline) terminates the event. The browser's `EventSource` parser splits on this and dispatches `es.addEventListener('analytics', ...)`.
+The `\n\n` (double newline) terminates the event. The hook's manual parser splits frames on it and reads the `event:` line (see Step 1) — there is no `EventSource` involved anywhere.
 
 **Other event types sent:**
 
@@ -344,22 +356,20 @@ The `\n\n` (double newline) terminates the event. The browser's `EventSource` pa
 | `connected` | Client first connects | `{shortCode}`                      |
 | `analytics` | Click event processed | Full aggregated stats              |
 | `shutdown`  | Server shutting down  | `{message:"Server shutting down"}` |
-| `:ping`     | Every 30s (keepalive) | Comment — client ignores           |
+| `:ping`     | Every 20s (keepalive) | Comment — client ignores           |
 
 ---
 
 ### Step 7: Browser Receives and Reacts
 
-Back in the frontend hook:
+Back in the frontend hook, the frame loop from Step 1 handles it:
 
 ```typescript
-es.addEventListener('analytics', () => {
-  if (!cancelled) {
-    // Don't process the data directly — invalidate the query cache
-    // so TanStack Query refetches from the REST API
-    void queryClient.invalidateQueries({ queryKey: ['analytics', shortCode] });
-  }
-});
+if (event === 'analytics' && !cancelled) {
+  // Don't process the data directly — invalidate the query cache
+  // so TanStack Query refetches from the REST API
+  void queryClient.invalidateQueries({ queryKey: ['analytics', shortCode] });
+}
 ```
 
 **Why invalidate instead of using the SSE data directly?**
@@ -399,20 +409,23 @@ The main Redis client (`apps/api/src/redis/client.ts`) handles caching and rate 
 ## Connection Lifecycle
 
 ```
-Browser opens EventSource
+Browser opens stream via fetch (+ Authorization header)
+         │
+         ▼
+requireAuth → 401 for anonymous; assertOwned → 404 for foreign codes
          │
          ▼
 Controller sets SSE headers
          │
          ▼
 SseConnectionManager.addConnection()
-  → stores in connections Map
+  → stores in connections Map (with owner userId)
   → adds to subscriptions Set
   → sends 'connected' event
          │
          ▼
 Connection stays open...
-  → :ping every 30s (keepalive)
+  → :ping every 20s (keepalive)
   → 'analytics' events as clicks happen
          │
          ▼
@@ -444,10 +457,10 @@ this.keepalive = setInterval(() => {
       this.removeConnection(conn.id); // Dead connection — clean up
     }
   }
-}, env.SSE_KEEPALIVE_MS); // Default: 30000ms (30s)
+}, env.SSE_KEEPALIVE_MS); // Default: 20000ms (20s)
 ```
 
-**SSE comments** start with `:` and are ignored by the `EventSource` API. They're just心跳 to keep the TCP connection alive through proxies.
+**SSE comments** start with `:` and are ignored by the client's frame parser. They're just heartbeats to keep the TCP connection alive through proxies.
 
 Nginx config also needs:
 
@@ -463,7 +476,9 @@ location /api/v1/urls/:shortCode/analytics/stream {
 
 ## Reconnection with Exponential Backoff
 
-If the SSE connection drops, the browser's `EventSource` doesn't auto-reconnect with backoff (it retries immediately, which can cause retry storms). The hook implements its own:
+If the stream drops, the hook reconnects itself with backoff (a raw
+`fetch` stream has no built-in reconnect at all — unlike `EventSource`,
+which retries immediately and can cause retry storms):
 
 ```typescript
 function scheduleReconnect() {
@@ -473,13 +488,11 @@ function scheduleReconnect() {
 }
 ```
 
-**Why manual backoff?** Browser `EventSource` has a built-in reconnection, but:
+**Why manual backoff?** A raw `fetch` stream gives no reconnection for free, and `EventSource` (which does) cannot send the `Authorization` header this stream requires. So the hook owns the full lifecycle:
 
-- It retries immediately on some error types
-- It doesn't respect server-side shutdown signals
-- It doesn't reset backoff on success
-
-The hook takes full control: close the `EventSource`, wait with backoff, create a new one.
+- It aborts and re-fetches with backoff instead of hammering the server
+- It honors server-side `shutdown` events instead of reconnecting blindly
+- It resets backoff on a successful `connected` frame
 
 ---
 
@@ -562,7 +575,7 @@ sse_events_sent_total 147
 
 The SSE system in Shortly works like this:
 
-1. **Browser opens EventSource** → server registers the connection
+1. **Browser opens fetch stream** (with session token) → server checks ownership, registers the connection
 2. **User clicks short link** → outbox → publisher → RabbitMQ → analytics worker
 3. **Analytics worker inserts to PG** → publishes to Redis pub/sub
 4. **SseConnectionManager receives Redis message** → fetches full stats from PG → broadcasts to all connected clients
@@ -574,5 +587,5 @@ The SSE system in Shortly works like this:
 - **Fire-and-forget everywhere.** Redis pub/sub failures don't block the pipeline.
 - **Redis pub/sub enables horizontal scaling.** One publish, many subscribers.
 - **Dedicated subscriber connection.** Redis pub/sub mode is incompatible with regular commands.
-- **Keepalive prevents proxy timeouts.** SSE comments every 30s.
-- **Manual reconnection with backoff.** More reliable than browser `EventSource` auto-reconnect.
+- **Keepalive prevents proxy timeouts.** SSE comments every 20s.
+- **Manual reconnection with backoff.** A deliberate choice: `EventSource` cannot carry the session token, so the hook owns reconnect itself.
