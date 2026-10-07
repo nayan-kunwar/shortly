@@ -234,6 +234,8 @@ safety.
 | `GET`    | `/api/v1/urls/:code`                  | URL details                                     |
 | `GET`    | `/api/v1/urls/:code/analytics`        | Click analytics                                 |
 | `GET`    | `/api/v1/urls/:code/analytics/stream` | Real-time analytics (SSE)                       |
+| `GET`    | `/api/v1/stats`                       | Dashboard totals (user-scoped)                  |
+| `GET`    | `/api/v1/stats/breakdowns`            | Country/device/browser/referrer breakdowns      |
 | `DELETE` | `/api/v1/urls/:code`                  | Deactivate URL                                  |
 | `GET`    | `/:shortCode`                         | Redirect (302)                                  |
 
@@ -290,10 +292,10 @@ Available at `http://localhost:3000/docs` during development.
 ## Testing
 
 ```bash
-# Backend (89/90 pass — outbox test needs RabbitMQ)
+# Backend (119/119 — full suite needs PG + Redis + RabbitMQ running)
 pnpm --filter @shortly/api run test
 
-# Frontend (40/40)
+# Frontend (61/61, jsdom)
 pnpm --filter @shortly/web run test
 
 # Typecheck
@@ -309,6 +311,19 @@ pnpm --filter @shortly/shared run build
 pnpm --filter @shortly/api run build
 pnpm --filter @shortly/web run build
 ```
+
+### Continuous Integration
+
+`.github/workflows/ci.yml` runs on pushes to `main` and every pull request:
+
+- `quality` — `typecheck`, `lint`, `format:check` (no services)
+- `test` — full API + web suites against health-gated Postgres 16,
+  Redis 7, and RabbitMQ service containers
+- `build` — production builds, gated on green `quality` + `test`
+
+Playwright web e2e is deliberately excluded (needs browsers + both
+servers) — run it locally. Never run dev workers while testing; the
+suites share one Postgres + RabbitMQ.
 
 ## Analytics
 
@@ -545,19 +560,23 @@ shortly/                          pnpm workspace root
 │   │   │   ├── observability/    Logger, metrics, readiness
 │   │   │   ├── errors/           Typed error classes
 │   │   │   ├── validators/       Zod schemas
-│   │   │   └── db/               Drizzle schema + migrations
+│   │   │   ├── auth/             Accounts, sessions, guest identities
+│   │   │   ├── sse/              Real-time stream manager
+│   │   │   └── db/               Drizzle schema (migrations live in apps/api/migrations/)
 │   │   └── tests/                Unit, integration, e2e
 │   └── web/                      Next.js frontend (port 3001)
 │       └── src/
-│           ├── app/              App Router pages
-│           ├── features/         URL + analytics features
-│           ├── components/       UI components
+│           ├── app/              App Router pages (landing at /, dashboard at /dashboard)
+│           ├── features/         URLs + analytics + auth (session, guest store) + stats
+│           ├── components/       UI primitives, layout (shell, navbars), charts
 │           └── lib/              API client, query client, utils
 ├── packages/
-│   └── shared/                   @shortly/shared (constants, types)
+│   └── shared/                   @shortly/shared (constants, types, validators)
 ├── infrastructure/
 │   ├── docker-compose.yml        Full stack (8 containers)
 │   └── nginx/nginx.conf          Load balancer config
+├── .github/
+│   └── workflows/ci.yml          quality → test → build gates
 ├── docs/                         Milestone docs, system design
 ├── pnpm-workspace.yaml
 ├── tsconfig.base.json
@@ -577,9 +596,9 @@ shortly/                          pnpm workspace root
 | `docs/milestone-03-base62.md`              | M3: Short code encoding                 |
 | `docs/milestone-04-redirect.md`            | M4: GET /:shortCode                     |
 | `docs/milestone-05-redis.md`               | M5: Cache-aside                         |
-| `docs/milestone-06-custom-aliases.md`      | M6: Alias validation                    |
-| `docs/milestone-07-url-lifecycle.md`       | M7: Deactivation + expiry               |
-| `docs/milestone-08-rate-limiting.md`       | M8: Distributed rate limiter            |
+| `docs/milestone-06-aliases.md`             | M6: Alias validation                    |
+| `docs/milestone-07-lifecycle.md`           | M7: Deactivation + expiry               |
+| `docs/milestone-08-ratelimit.md`           | M8: Distributed rate limiter            |
 | `docs/milestone-09-analytics-events.md`    | M9: Event construction                  |
 | `docs/milestone-10-outbox.md`              | M10: Transactional outbox               |
 | `docs/milestone-11-analytics-worker.md`    | M11: Worker + RabbitMQ                  |

@@ -5,22 +5,24 @@ hold the per-decision reasoning; this file is the map over them.
 
 ## 1. Functional requirements
 
-| #   | Requirement                                                   | Status                       |
-| --- | ------------------------------------------------------------- | ---------------------------- |
-| F1  | Create short URLs (`POST /api/v1/urls`, authenticated)        | M2 + auth, live              |
-| F2  | Redirect (`GET /:shortCode`, 302)                             | M4, live                     |
-| F3  | Custom aliases (validated, reserved, race-safe)               | M6, live                     |
-| F4  | Expiration (`expiresAt`, lazy) + deactivation (`DELETE`, 410) | M2/M4/M7, live               |
-| F5  | List (keyset) + details + global stats reads                  | reads/stats milestones, live |
-| F6  | Click analytics pipeline → dashboard API                      | M9–M13, live                 |
-| F7  | Distributed rate limiting (100/min/IP, 429)                   | M8, live                     |
-| F8  | Observability (logs, metrics, readiness)                      | M14, live                    |
-| F9  | Machine-readable API contract                                 | M19, live                    |
-| F10 | Horizontal scaling behind a load balancer                     | M17, proven live             |
+| #   | Requirement                                                         | Status                       |
+| --- | ------------------------------------------------------------------- | ---------------------------- |
+| F1  | Create short URLs (`POST /api/v1/urls`, account or anonymous guest) | M2 + auth + guest flow, live |
+| F2  | Redirect (`GET /:shortCode`, 302)                                   | M4, live                     |
+| F3  | Custom aliases (validated, reserved, race-safe)                     | M6, live                     |
+| F4  | Expiration (`expiresAt`, lazy) + deactivation (`DELETE`, 410)       | M2/M4/M7, live               |
+| F5  | List (keyset) + details + global stats reads                        | reads/stats milestones, live |
+| F6  | Click analytics pipeline → dashboard API                            | M9–M13, live                 |
+| F7  | Distributed rate limiting (100/min/IP, 429)                         | M8, live                     |
+| F8  | Observability (logs, metrics, readiness)                            | M14, live                    |
+| F9  | Machine-readable API contract                                       | M19, live                    |
+| F10 | Horizontal scaling behind a load balancer                           | M17, proven live             |
 
 Accounts are email and password. Sessions are opaque bearer tokens stored as SHA-256 hashes in PostgreSQL, so logout deletes the row and Redis is not required for auth. Management, analytics, and stats are limited to `urls.user_id` of the caller. `GET /:shortCode` stays public and returns only a redirect.
 
-Rows created before accounts have `user_id` NULL. They keep their short codes and still redirect. They do not appear in any user's list, and delete, details, and analytics answer 404 for them. Nothing in the product assigns those rows to a user.
+Anonymous creation needs no account: the response mints a `guestId` anchor (stored in the `guests` table, stamped on `urls.guest_id`) that the client sends back as `X-Guest-Token`. Guests get generated codes only — custom aliases return 400. Identity resolution is three-way: no `Authorization` header means guest, a valid bearer means account, and a present-but-invalid bearer is always 401, never silently downgraded to guest. After register/login the client calls `POST /api/v1/urls/claim { guestId }`, which atomically moves only `user_id IS NULL` rows onto the account (idempotent; account-owned rows can never be taken over).
+
+Rows created before accounts have `user_id` NULL _and_ `guest_id` NULL. They keep their short codes and still redirect. They do not appear in any user's list, and delete, details, and analytics answer 404 for them. Nothing in the product assigns those rows to a user.
 
 Out of scope: custom domains, link editing
 beyond deactivation (see §7), password reset, and OAuth.
@@ -122,13 +124,17 @@ mirrors contracts it never owns.
 
 ## 5. Data model
 
-- **`urls`** — one row per shortened link. `BIGSERIAL` id (internal,
-  Base62-encoded for codes); `short_code` + `custom_alias` unique (the
-  redirect and alias indexes); `is_active` soft-delete flag; `expires_at`
-  nullable (NULL = forever); `updated_at` trigger. `user_id` references
-  `users` and is NULL for links created before accounts existed — those
-  rows stay publicly resolvable and are not manageable.
+- **`urls`** — one row per shortened link. `BIGSERIAL` id (internal;
+  random 7-char codes, no longer derived from the id); `short_code` +
+  `custom_alias` unique (the redirect and alias indexes); `is_active`
+  soft-delete flag; `expires_at` nullable (NULL = forever); `updated_at`
+  trigger. `user_id` references `users` and is NULL for anonymous creates
+  and pre-account legacy rows. `guest_id` references `guests` and anchors
+  anonymous creates until `POST /api/v1/urls/claim` moves them onto an
+  account (clearing the anchor).
 - **`users`** — email (unique, stored lowercase) and scrypt `password_hash`.
+- **`guests`** — opaque anonymous identities (id only); minted on first
+  guest create, retired after claim, purged when stale.
 - **`sessions`** — `token_hash` unique, `expires_at`. The raw bearer token
   is returned once and never stored.
 - **`outbox_events`** — durable publish receipts (`event_id` idempotency
@@ -144,7 +150,7 @@ mirrors contracts it never owns.
 ### Creation
 
 ```text
-Client → Nginx → API → Zod → Service → (alias ? single attempt : sequence → Base62 in-txn) → PG → invalidate → 201
+Client → Nginx → API → Zod → identity (account or guest anchor) → Service → (alias ? single attempt : random 7-char code with retry) → PG → invalidate → 201 (+ guestId when an anchor was minted)
 ```
 
 ### Redirect (hot path)
@@ -168,6 +174,10 @@ click_events → GET analytics API
 Deactivation flips the flag and invalidates (410 thereafter, M7). List
 and stats reads ride the shared read rate budget, mounted before the
 write-limited router (registration order is the exemption mechanism).
+Creates split after identity resolution: accounts share the write budget,
+anonymous creates get a strict anti-abuse bucket (10/hour/IP —
+`GUEST_CREATE_*`), because guest endpoints mint database rows for
+strangers.
 
 ## 7. Cross-cutting principles (the project's thesis)
 
@@ -183,7 +193,7 @@ write-limited router (registration order is the exemption mechanism).
 
 ## 8. What is not here (and why)
 
-Auth (no users, no threat model needing it), custom domains (DNS +
+accounts (email + password, scrypt, opaque sessions), custom domains (DNS +
 cert complexity for zero learning value now), link editing (deactivate +
 recreate covers the lifecycle), ClickHouse/sharding/distributed IDs
 (documented futures in M22-stage thinking, unearned at this volume).

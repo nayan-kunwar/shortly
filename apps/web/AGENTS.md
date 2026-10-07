@@ -774,25 +774,15 @@ Do not sacrifice accessibility for visual effects.
 
 Create reusable UI components.
 
-At minimum:
+Shipped (`components/ui/`): `Button` (+ `Card`), `TextInput` (+ `FieldError`),
+`Logo`. Everything else (tables, badges, skeletons, empty/error states)
+is inlined in feature components — deliberately, to avoid building a
+component library before the patterns earn it.
 
-```text
-Button
-Input
-Textarea
-Select
-Dialog
-Dropdown
-Badge
-Card
-Table
-Skeleton
-Toast
-Tooltip
-Tabs
-EmptyState
-ErrorState
-```
+Design tokens live in `app/globals.css` (`@theme`): `--color-brand-50…950`
+(coral, 500 is primary), `--color-canvas/surface/line`, plus `fade-in-up`,
+`gradient-text`, and `glow-border` utilities. Retheme by editing those
+hexes only — components reference tokens, never raw brand colors.
 
 Do not install a massive component framework unless necessary.
 
@@ -848,18 +838,19 @@ Avoid flashing between themes during initial load.
 
 # 22. Authentication Boundary
 
-The current backend architecture may not implement full authentication.
+The backend implements full authentication, and the frontend integrates it
+through the API contract — exactly as this section prescribed:
 
-Do NOT invent a complete authentication system unless the backend API supports it.
-
-If authentication is not currently available:
-
-- Keep the frontend architecture ready for future authentication.
-- Do not fake authentication.
-- Do not store fake tokens.
-- Do not build security logic that the backend does not support.
-
-If authentication is later introduced into the backend, integrate it through the API contract.
+- Accounts: `POST /api/v1/auth/register|login`, `POST /api/v1/auth/logout`,
+  `GET /api/v1/auth/me`. Bearer token in `sessionStorage` (`features/auth/session.ts`).
+- `AuthProvider` + `useAuth` own identity; `RequireAuth` guards private
+  routes (`/dashboard`, `/urls/*`); `/create` and `/` are deliberately
+  public (guest creates + claim flow).
+- Guest identity: server-minted `guestId` in `localStorage`
+  (`features/auth/guest-store.ts`), sent as `X-Guest-Token` only when no
+  bearer exists; claimed once at sign-in via `POST /api/v1/urls/claim`.
+- The API remains the security boundary. Frontend validation mirrors the
+  backend but never replaces it; never store server secrets client-side.
 
 ---
 
@@ -1131,22 +1122,29 @@ Do not invent API responses.
 
 If the backend API does not currently support something required by the UI, clearly identify the missing endpoint/field instead of silently implementing fake data.
 
-### Backend capability map (backend at M4 — update as milestones land)
+### Backend capability map (backend at M24 + auth + guest — update as milestones land)
 
 ```text
-UI need                  Backend endpoint                      Status
-Create form (F2)         POST /api/v1/urls                     EXISTS (201)
-Redirect                 GET /:shortCode                       Backend-owned, no FE work
-URL list/search (F3)     GET /api/v1/urls (cursor page)        EXISTS (list milestone)
-URL details (F3)         GET /api/v1/urls/:shortCode           EXISTS (list milestone)
-Deactivate (F3)          DELETE /api/v1/urls/:shortCode         Planned (backend M7)
-Analytics (F4)           GET /api/v1/urls/:shortCode/analytics EXISTS since backend M13
+UI need                  Backend endpoint                          Status
+Register (auth)          POST /api/v1/auth/register                EXISTS (201 + session)
+Login (auth)             POST /api/v1/auth/login                   EXISTS (200 + session)
+Logout (auth)            POST /api/v1/auth/logout                  EXISTS (204)
+Current user (auth)      GET /api/v1/auth/me                       EXISTS (200)
+Claim guest links        POST /api/v1/urls/claim                   EXISTS (200, idempotent)
+Create form (F2)         POST /api/v1/urls                         EXISTS (201; account or guest)
+Redirect                 GET /:shortCode                           Backend-owned, no FE work
+URL list/search (F3)     GET /api/v1/urls (cursor page)            EXISTS, user-scoped
+URL details (F3)         GET /api/v1/urls/:shortCode               EXISTS, user-scoped
+Deactivate (F3)          DELETE /api/v1/urls/:shortCode            EXISTS since backend M7
+Analytics (F4)           GET /api/v1/urls/:shortCode/analytics     EXISTS since backend M13
+Live analytics (SSE)     GET /api/v1/urls/:shortCode/analytics/stream  EXISTS (Bearer via fetch)
 Dashboard stats (F5)     GET /api/v1/stats                         EXISTS (stats milestone)
-Error codes              400/404/409/410 exist; 429 in M8      See mapping in §15
+Breakdowns (F5)          GET /api/v1/stats/breakdowns              EXISTS (stats milestone)
+Error codes              400/401/404/409/410 exist; 429 since M8   See mapping in §15
+Guest codes              GUEST_TOKEN_INVALID / GUEST_ALIAS_FORBIDDEN (400)  Claim-once + retry logic
 ```
 
-F3+ starts only after the NOT IN SPEC rows resolve to a specified endpoint
-or an explicit descoped UI. This table is the gate — keep it current.
+F3–F9 all shipped against this table. It remains the gate — keep it current.
 
 ---
 

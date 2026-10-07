@@ -136,10 +136,16 @@ cd infrastructure && docker compose up -d   # spins up everything
 ## Full test sweep
 
 ```bash
-pnpm --filter @shortly/api run test          # backend, 90 tests (needs PG+Redis+RabbitMQ)
-pnpm --filter @shortly/web run test          # frontend unit tests
+pnpm --filter @shortly/api run test          # backend, 119 tests (needs PG+Redis+RabbitMQ)
+pnpm --filter @shortly/web run test          # frontend unit tests (61, jsdom)
 pnpm --filter @shortly/web run test:e2e      # frontend E2E, auto-starts both dev servers
 ```
+
+> Never run dev workers (publisher / analytics-worker) on the same machine
+> while testing — the suites share one Postgres + RabbitMQ and TRUNCATE
+> between files. A live publisher will race the outbox suite over the
+> shared broker and fail it. CI documents the same constraint in
+> `.github/workflows/ci.yml`.
 
 ## Quality gate (pre-merge)
 
@@ -147,14 +153,16 @@ pnpm --filter @shortly/web run test:e2e      # frontend E2E, auto-starts both de
 pnpm --filter @shortly/api run build        # TypeScript compilation
 pnpm --filter @shortly/api run typecheck    # tsc --noEmit
 pnpm --filter @shortly/api run lint         # ESLint
-pnpm --filter @shortly/api run test         # full backend suite (89/90 — outbox needs RabbitMQ)
+pnpm --filter @shortly/api run test         # full backend suite (119 — needs PG+Redis+RabbitMQ)
 
 pnpm --filter @shortly/web run build        # Next.js production build
 pnpm --filter @shortly/web run typecheck    # tsc --noEmit
 pnpm --filter @shortly/web run lint         # ESLint
-pnpm --filter @shortly/web run test         # frontend tests
+pnpm --filter @shortly/web run test         # frontend tests (61)
 
 pnpm --filter @shortly/shared run build     # shared package build
+
+pnpm format:check                            # Prettier (CI hard-gates this)
 ```
 
 All must pass before merging. Fix branches follow the same gate.
