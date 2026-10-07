@@ -119,7 +119,7 @@ scale (30 billion events/month), this is unbounded storage growth.
 purge methods. Make the retention window configurable via environment
 variables.
 
-### 4. No DLQ consumer or monitoring (MEDIUM)
+### 4. No DLQ consumer or monitoring (MEDIUM) — FIXED
 
 **File:** `apps/api/src/rabbitmq/connection.ts:7-24`
 
@@ -130,6 +130,16 @@ API process's in-memory metrics — not the worker process.
 
 **Fix:** Add a DLQ consumer that logs/alerts on dead-lettered messages.
 Expose worker metrics via a `/metrics` endpoint on each worker process.
+
+**Fixed:** standalone `dlq-inspector` worker
+(`apps/api/src/workers/dlq-inspector.ts`, own `:9092` metrics endpoint,
+own `dlq-inspector` compose service). It consumes the DLQ with manual
+ack: logs each dead letter at error level with messageId, routingKey,
+x-death reason and a 500-char payload preview, tracks `dlq_total` /
+`dlq_depth`, then acks so poison cannot accumulate. A noAck "peek" was
+tried first and rejected: AMQP auto-removes on delivery, so peeking
+destroys the evidence it pretends to preserve — the error log line is
+the durable evidence, not queue depth.
 
 ### 5. Worker metrics invisible via API `/metrics` (MEDIUM)
 

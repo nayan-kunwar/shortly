@@ -128,6 +128,24 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  # --- DLQ inspector: peeks at dead letters, never consumes ---------------
+  dlq-inspector:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    container_name: shortly-dlq-inspector
+    restart: unless-stopped
+    command: node apps/api/dist/workers/dlq-inspector.js
+    environment:
+      NODE_ENV: production
+      # Required at boot by the shared env module (same rule as publisher).
+      BASE_URL: ${BASE_URL:-http://localhost:3000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
   # --- Horizontal scaling (M17) -----------------------------------------
   api-2:
     build:
