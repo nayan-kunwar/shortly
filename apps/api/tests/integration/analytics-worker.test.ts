@@ -14,6 +14,11 @@ import {
 } from '../../src/rabbitmq/connection.js';
 import { closeRedis } from '../../src/redis/client.js';
 import { startAnalyticsWorker, type WorkerHandle } from '../../src/workers/analytics-worker.js';
+import {
+  startDlqInspector,
+  type DeadLetterInfo,
+  type DlqInspectorHandle,
+} from '../../src/workers/dlq-inspector.js';
 import { waitFor } from '../helpers.js';
 
 // Needs PostgreSQL + RabbitMQ:
@@ -22,6 +27,8 @@ import { waitFor } from '../helpers.js';
 let connection: ChannelModel;
 let channel: Channel;
 let worker: WorkerHandle;
+let inspector: DlqInspectorHandle;
+let seenDeadLetters: DeadLetterInfo[];
 
 beforeAll(async () => {
   await runMigrations(pool);
@@ -29,15 +36,23 @@ beforeAll(async () => {
   channel = await connection.createChannel();
   await assertTopology(channel);
   worker = await startAnalyticsWorker(db);
+  seenDeadLetters = [];
+  inspector = await startDlqInspector(undefined, {
+    onDeadLetter: (info) => {
+      seenDeadLetters.push(info);
+    },
+  });
 }, 30_000);
 
 beforeEach(async () => {
   await pool.query('TRUNCATE click_events RESTART IDENTITY');
   await channel.purgeQueue(CLICKS_QUEUE);
   await channel.purgeQueue(CLICKS_DLQ);
+  seenDeadLetters = [];
 });
 
 afterAll(async () => {
+  await inspector.stop();
   await worker.stop();
   await channel.close();
   await connection.close();
@@ -98,14 +113,27 @@ describe('analytics worker', () => {
   it('routes unparseable payloads to the DLQ, never the table', async () => {
     channel.sendToQueue(CLICKS_QUEUE, Buffer.from('this is not json'), { persistent: true });
 
-    await waitFor(async () => (await dlqDepth()) === 1);
+    // The DLQ inspector drains the queue after logging, so "reached the
+    // DLQ" is observed via the inspector, not queue depth.
+    await waitFor(async () => seenDeadLetters.length === 1);
+    expect(seenDeadLetters[0]?.payloadPreview).toBe('this is not json');
     expect(await clickCount()).toBe(0);
   });
 
   it('routes schema-invalid events to the DLQ', async () => {
     publish({ eventType: 'url.clicked', shortCode: '', clickedAt: 'yesterday' });
 
-    await waitFor(async () => (await dlqDepth()) === 1);
+    await waitFor(async () => seenDeadLetters.length === 1);
     expect(await clickCount()).toBe(0);
+  });
+
+  it('inspector drains dead letters after observing them', async () => {
+    channel.sendToQueue(CLICKS_QUEUE, Buffer.from('this is not json'), { persistent: true });
+
+    await waitFor(async () => seenDeadLetters.length === 1);
+    expect(seenDeadLetters[0]?.payloadPreview).toBe('this is not json');
+    // No accumulation: the inspector acks after logging, so poison does
+    // not pile up in the broker forever.
+    await waitFor(async () => (await dlqDepth()) === 0);
   });
 });

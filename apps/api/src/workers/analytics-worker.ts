@@ -73,8 +73,10 @@ export async function startAnalyticsWorker(
   await assertTopology(channel);
   await channel.prefetch(PREFETCH);
 
-  // Note: DLQ messages accumulate for operator inspection / alerting.
-  // Do NOT auto-ack them here — tests and monitoring need queue depth.
+  // Note: rejected messages land in analytics.clicks.dlq, where the
+  // standalone DLQ inspector (workers/dlq-inspector.ts) logs and acks
+  // them. Do NOT ack DLQ messages here — that would silently swallow
+  // poison before the inspector ever sees it.
 
   const batch: PendingMessage[] = [];
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
