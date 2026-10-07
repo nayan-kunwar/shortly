@@ -1,5 +1,5 @@
 import http from 'node:http';
-import type { ConsumeMessage } from 'amqplib';
+import type { ConsumeMessage, XDeath } from 'amqplib';
 import { analyticsMetrics, recordDlqDepth, recordDlqSeen } from '../analytics/analytics-metrics.js';
 import { assertTopology, CLICKS_DLQ, connectRabbitMQ } from '../rabbitmq/connection.js';
 import { log } from '../observability/logger.js';
@@ -54,12 +54,13 @@ export async function startDlqInspector(
   const handleMessage = (msg: ConsumeMessage): void => {
     const raw = msg.content.toString();
     const xDeath = msg.properties.headers?.['x-death'];
-    const firstDeath = Array.isArray(xDeath) ? (xDeath[0] as Record<string, unknown>) : undefined;
+    const firstDeath: XDeath | undefined = Array.isArray(xDeath) ? xDeath[0] : undefined;
     const info: DeadLetterInfo = {
-      messageId: typeof msg.properties.messageId === 'string' ? msg.properties.messageId : undefined,
+      messageId:
+        typeof msg.properties.messageId === 'string' ? msg.properties.messageId : undefined,
       routingKey: msg.fields.routingKey,
       redelivered: msg.fields.redelivered,
-      deathReason: typeof firstDeath?.reason === 'string' ? firstDeath.reason : undefined,
+      deathReason: firstDeath?.reason,
       payloadPreview: raw.slice(0, MAX_PAYLOAD_LOG_CHARS),
     };
     if (hooks.onDeadLetter !== undefined) {
@@ -125,7 +126,9 @@ if (isMainModule()) {
     log('info', 'DLQ inspector shutting down...');
     void inspector
       .stop()
-      .catch((e: unknown) => log('error', 'Error stopping DLQ inspector', { error: (e as Error).message }))
+      .catch((e: unknown) =>
+        log('error', 'Error stopping DLQ inspector', { error: (e as Error).message }),
+      )
       .finally(() => process.exit(0));
   };
   process.on('SIGTERM', stop);

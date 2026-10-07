@@ -106,7 +106,7 @@ cd infrastructure
 docker compose up -d
 ```
 
-This runs 8 containers: `postgres`, `redis`, `rabbitmq`, `api`, `api-2`, `publisher`, `analytics-worker`, `nginx`.
+This runs 9 containers: `postgres`, `redis`, `rabbitmq`, `api`, `api-2`, `publisher`, `analytics-worker`, `dlq-inspector`, `nginx`.
 
 Workers are separate containers with automatic restart. See `infrastructure/docker-compose.yml`.
 

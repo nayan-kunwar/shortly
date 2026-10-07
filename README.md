@@ -573,7 +573,7 @@ shortly/                          pnpm workspace root
 ├── packages/
 │   └── shared/                   @shortly/shared (constants, types, validators)
 ├── infrastructure/
-│   ├── docker-compose.yml        Full stack (8 containers)
+│   ├── docker-compose.yml        Full stack (9 containers)
 │   └── nginx/nginx.conf          Load balancer config
 ├── .github/
 │   └── workflows/ci.yml          quality → test → build gates
