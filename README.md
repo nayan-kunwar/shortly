@@ -174,23 +174,23 @@ cd infrastructure && docker compose up -d --build
 
 ## Environment Variables
 
-| Variable                      | Default                                               | Description                                        |
-| ----------------------------- | ----------------------------------------------------- | -------------------------------------------------- |
-| `DATABASE_URL`                | `postgresql://shortly:shortly@localhost:5433/shortly` | PostgreSQL connection string                       |
-| `REDIS_URL`                   | `redis://localhost:6379`                              | Redis connection string                            |
-| `RABBITMQ_URL`                | `amqp://guest:guest@localhost:5672`                   | RabbitMQ connection string                         |
-| `BASE_URL`                    | `http://localhost:3000`                               | Public base URL for short links                    |
-| `PORT`                        | `3000`                                                | API server port                                    |
-| `REDIS_TTL`                   | `3600`                                                | Cache TTL in seconds (60-86400)                    |
-| `RATE_LIMIT_WINDOW`           | `60`                                                  | Rate limit window in seconds                       |
-| `RATE_LIMIT_MAX_REQUESTS`     | `100`                                                 | Max requests per window per IP                     |
-| `GUEST_CREATE_WINDOW_SECONDS` | `3600`                                                | Anonymous-create window in seconds                 |
-| `GUEST_CREATE_MAX_REQUESTS`   | `10`                                                  | Anonymous creates per window per IP                |
-| `AUTH_SESSION_TTL_SECONDS`    | `604800`                                              | Bearer session lifetime (7 days)                   |
-| `LOG_LEVEL`                   | `info`                                                | Log level (debug/info/warn/error)                  |
-| `NODE_ENV`                    | `development`                                         | Environment                                        |
-| `CORS_ORIGIN`                 | `http://localhost:3001`                               | Allowed CORS origin                                |
-| `RUN_WORKERS`                 | `false`                                               | Start publisher + analytics worker in same process |
+| Variable                      | Default                                               | Description                                                                                                                                       |
+| ----------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                | `postgresql://shortly:shortly@localhost:5433/shortly` | PostgreSQL connection string                                                                                                                      |
+| `REDIS_URL`                   | `redis://localhost:6379`                              | Redis connection string                                                                                                                           |
+| `RABBITMQ_URL`                | `amqp://guest:guest@localhost:5672`                   | RabbitMQ connection string                                                                                                                        |
+| `BASE_URL`                    | `http://localhost:3000`                               | Public base URL for short links. **Required when `NODE_ENV=production`** — the API, publisher, and analytics-worker all refuse to boot without it |
+| `PORT`                        | `3000`                                                | API server port                                                                                                                                   |
+| `REDIS_TTL`                   | `3600`                                                | Cache TTL in seconds (60-86400)                                                                                                                   |
+| `RATE_LIMIT_WINDOW`           | `60`                                                  | Rate limit window in seconds                                                                                                                      |
+| `RATE_LIMIT_MAX_REQUESTS`     | `100`                                                 | Max requests per window per IP                                                                                                                    |
+| `GUEST_CREATE_WINDOW_SECONDS` | `3600`                                                | Anonymous-create window in seconds                                                                                                                |
+| `GUEST_CREATE_MAX_REQUESTS`   | `10`                                                  | Anonymous creates per window per IP                                                                                                               |
+| `AUTH_SESSION_TTL_SECONDS`    | `604800`                                              | Bearer session lifetime (7 days)                                                                                                                  |
+| `LOG_LEVEL`                   | `info`                                                | Log level (debug/info/warn/error)                                                                                                                 |
+| `NODE_ENV`                    | `development`                                         | Environment                                                                                                                                       |
+| `CORS_ORIGIN`                 | `http://localhost:3001`                               | Allowed CORS origin                                                                                                                               |
+| `RUN_WORKERS`                 | `false`                                               | Start publisher + analytics worker in same process                                                                                                |
 
 See `apps/api/.env.example` and `apps/web/.env.example` for full lists.
 
