@@ -186,13 +186,20 @@ by level or component.
 fires in `.finally()`. In-flight DB writes from message handlers may be
 killed before completion. There is no drain period.
 
-### 10. BASE_URL defaults to localhost in production (LOW)
+### 10. BASE_URL defaults to localhost in production (LOW) — FIXED
 
-**File:** `apps/api/src/config/env.ts:6`
+**File:** `apps/api/src/config/env.ts`
 
 If `BASE_URL` is not set in production, all generated `shortUrl` values
 contain `http://localhost:3000`. The schema should require `BASE_URL` when
 `NODE_ENV === 'production'`.
+
+**Fix:** a `superRefine` on the env schema throws
+`BASE_URL is required when NODE_ENV=production` when the var is unset or
+empty (`""` is treated as unset by `loadEnv()`). Dev/test keep the
+localhost default. Blast radius: `publisher` and `analytics-worker` run
+with `NODE_ENV: production` and import the same env module, so both got
+`BASE_URL` in `docker-compose.yml` — without it they crash at boot.
 
 ## What assumptions remain
 

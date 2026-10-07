@@ -1,38 +1,56 @@
 import 'dotenv/config';
 import { z } from 'zod';
 
-const envSchema = z.object({
-  PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-  BASE_URL: z.string().url().default('http://localhost:3000'),
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
-  DATABASE_URL: z.string().min(1).default('postgres://shortly:shortly@localhost:5432/shortly'),
-  // Dev frontend origin for CORS. Non-production only; production is
-  // same-origin (or gateway-handled) and must not echo arbitrary origins.
-  CORS_ORIGIN: z.string().url().default('http://localhost:3001'),
-  REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
-  REDIS_TTL: z.coerce.number().int().min(60).max(86400).default(3600),
-  RATE_LIMIT_WINDOW: z.coerce.number().int().min(1).max(3600).default(60),
-  RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().min(1).max(100000).default(100),
-  /**
-   * Anonymous-create budget. Guest endpoints mint database rows for
-   * strangers, so this stays tight regardless of the account budget above.
-   */
-  GUEST_CREATE_WINDOW_SECONDS: z.coerce.number().int().min(60).max(86400).default(3600),
-  GUEST_CREATE_MAX_REQUESTS: z.coerce.number().int().min(1).max(1000).default(10),
-  RABBITMQ_URL: z.string().min(1).default('amqp://guest:guest@localhost:5672'),
-  SSE_POLL_INTERVAL_MS: z.coerce.number().int().min(1000).max(60000).default(5000),
-  SSE_MAX_CONNECTIONS: z.coerce.number().int().min(1).max(10000).default(1000),
-  SSE_KEEPALIVE_MS: z.coerce.number().int().min(5000).max(120000).default(20000),
-  RUN_WORKERS: z.coerce.boolean().default(false),
-  /** Bearer session lifetime. Logout deletes the row before this elapses. */
-  AUTH_SESSION_TTL_SECONDS: z.coerce
-    .number()
-    .int()
-    .min(60)
-    .max(60 * 60 * 24 * 30)
-    .default(60 * 60 * 24 * 7),
-});
+const envSchema = z
+  .object({
+    PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+    BASE_URL: z.string().url().default('http://localhost:3000'),
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+    DATABASE_URL: z.string().min(1).default('postgres://shortly:shortly@localhost:5432/shortly'),
+    // Dev frontend origin for CORS. Non-production only; production is
+    // same-origin (or gateway-handled) and must not echo arbitrary origins.
+    CORS_ORIGIN: z.string().url().default('http://localhost:3001'),
+    REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
+    REDIS_TTL: z.coerce.number().int().min(60).max(86400).default(3600),
+    RATE_LIMIT_WINDOW: z.coerce.number().int().min(1).max(3600).default(60),
+    RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().min(1).max(100000).default(100),
+    /**
+     * Anonymous-create budget. Guest endpoints mint database rows for
+     * strangers, so this stays tight regardless of the account budget above.
+     */
+    GUEST_CREATE_WINDOW_SECONDS: z.coerce.number().int().min(60).max(86400).default(3600),
+    GUEST_CREATE_MAX_REQUESTS: z.coerce.number().int().min(1).max(1000).default(10),
+    RABBITMQ_URL: z.string().min(1).default('amqp://guest:guest@localhost:5672'),
+    SSE_POLL_INTERVAL_MS: z.coerce.number().int().min(1000).max(60000).default(5000),
+    SSE_MAX_CONNECTIONS: z.coerce.number().int().min(1).max(10000).default(1000),
+    SSE_KEEPALIVE_MS: z.coerce.number().int().min(5000).max(120000).default(20000),
+    RUN_WORKERS: z.coerce.boolean().default(false),
+    /** Bearer session lifetime. Logout deletes the row before this elapses. */
+    AUTH_SESSION_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(60)
+      .max(60 * 60 * 24 * 30)
+      .default(60 * 60 * 24 * 7),
+  })
+  .superRefine((val, ctx) => {
+    // A production deploy that forgets BASE_URL boots fine, serves working
+    // redirects, and quietly mints short links pointing at localhost. Fail
+    // here instead. Note this reads process.env, not val.BASE_URL: the
+    // .default() above masks whether the var was ever set, and loadEnv()
+    // treats BASE_URL="" as unset — so an empty string must fail too.
+    if (
+      val.NODE_ENV === 'production' &&
+      (process.env.BASE_URL === undefined || process.env.BASE_URL === '')
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['BASE_URL'],
+        message: 'BASE_URL is required when NODE_ENV=production',
+      });
+    }
+  });
 
 export type AppEnv = z.infer<typeof envSchema>;
 
