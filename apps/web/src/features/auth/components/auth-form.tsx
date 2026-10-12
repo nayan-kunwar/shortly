@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Button } from '../../../components/ui/button';
-import { FieldError, TextInput } from '../../../components/ui/input';
+import { FieldError, PasswordInput, TextInput } from '../../../components/ui/input';
 import { ShortlyApiError } from '../../../lib/api/client';
 import { useAuth } from '../auth-context';
 
@@ -76,7 +76,7 @@ export function AuthForm({ mode, subtitle }: { mode: 'login' | 'register'; subti
         >
           Password
         </label>
-        <TextInput
+        <PasswordInput
           id="auth-password"
           type="password"
           autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
