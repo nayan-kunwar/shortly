@@ -77,6 +77,16 @@ export const globalStatsSchema = z
   })
   .openapi('GlobalStats');
 
+/** GET /api/v1/stats/breakdowns. All keys present; empty object when no data. */
+export const globalBreakdownsSchema = z
+  .object({
+    countries: z.record(z.number().int()),
+    devices: z.record(z.number().int()),
+    browsers: z.record(z.number().int()),
+    referrers: z.record(z.number().int()),
+  })
+  .openapi('GlobalBreakdowns');
+
 export const healthSchema = z
   .object({
     status: z.string(),
