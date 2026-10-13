@@ -11,6 +11,7 @@ import {
   claimGuestLinksSchema,
   conflictErrorSchema,
   createdUrlSchema,
+  globalBreakdownsSchema,
   globalStatsSchema,
   goneErrorSchema,
   healthSchema,
@@ -132,10 +133,12 @@ registry.registerPath({
   method: 'get',
   path: '/api/v1/urls',
   summary: 'List URLs (keyset page)',
+  security: bearer,
   request: { query: listUrlsQuerySchema },
   responses: {
     200: { description: 'Page of URLs', ...json(urlListPageSchema) },
     400: { description: 'Bad pagination input', ...json(validationErrorSchema) },
+    401: { description: 'Missing or invalid session', ...json(unauthorizedErrorSchema) },
   },
 });
 
@@ -143,9 +146,11 @@ registry.registerPath({
   method: 'get',
   path: '/api/v1/urls/{shortCode}',
   summary: 'URL details with lifetime clicks',
+  security: bearer,
   request: { params: z.object({ shortCode: z.string() }) },
   responses: {
     200: { description: 'Details', ...json(listedUrlSchema) },
+    401: { description: 'Missing or invalid session', ...json(unauthorizedErrorSchema) },
     404: { description: 'Unknown code', ...json(notFoundErrorSchema) },
   },
 });
@@ -154,12 +159,14 @@ registry.registerPath({
   method: 'delete',
   path: '/api/v1/urls/{shortCode}',
   summary: 'Soft-delete a URL',
+  security: bearer,
   request: { params: z.object({ shortCode: z.string() }) },
   responses: {
     200: {
       description: 'Deactivated',
       ...json(z.object({ shortCode: z.string(), isActive: z.boolean() })),
     },
+    401: { description: 'Missing or invalid session', ...json(unauthorizedErrorSchema) },
     404: { description: 'Unknown code', ...json(notFoundErrorSchema) },
   },
 });
@@ -168,10 +175,41 @@ registry.registerPath({
   method: 'get',
   path: '/api/v1/urls/{shortCode}/analytics',
   summary: 'Click analytics dashboard payload',
+  security: bearer,
   request: { params: z.object({ shortCode: z.string() }) },
   responses: {
     200: { description: 'Analytics', ...json(analyticsSchema) },
+    401: { description: 'Missing or invalid session', ...json(unauthorizedErrorSchema) },
     404: { description: 'Unknown code', ...json(notFoundErrorSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/urls/{shortCode}/analytics/stream',
+  summary: 'Live analytics over Server-Sent Events (owner-only)',
+  description:
+    'Authenticated fetch stream, NOT EventSource — the browser cannot attach ' +
+    'headers to EventSource, so the Bearer token rides on a fetch() and the ' +
+    'body is read as text/event-stream. Frames are `event: <type>` / ' +
+    '`data: <json>` pairs, terminated by a blank line. Server sends a ' +
+    '`:ping` comment every 20s to keep proxies from idling the socket.',
+  security: bearer,
+  request: {
+    params: z.object({ shortCode: z.string() }),
+    headers: z.object({ Accept: z.string().default('text/event-stream') }),
+  },
+  responses: {
+    200: {
+      description:
+        'Stream open. Body stays open until the client disconnects; it never returns a JSON payload.',
+      content: { 'text/event-stream': { schema: z.string() } },
+    },
+    401: { description: 'Missing or invalid session', ...json(unauthorizedErrorSchema) },
+    404: {
+      description: 'Unknown code, or not owned by the caller — the owner check is not optional',
+      ...json(notFoundErrorSchema),
+    },
   },
 });
 
@@ -179,8 +217,21 @@ registry.registerPath({
   method: 'get',
   path: '/api/v1/stats',
   summary: 'Global dashboard totals',
+  security: bearer,
   responses: {
     200: { description: 'Totals', ...json(globalStatsSchema) },
+    401: { description: 'Missing or invalid session', ...json(unauthorizedErrorSchema) },
+  },
+});
+
+registry.registerPath({
+  method: 'get',
+  path: '/api/v1/stats/breakdowns',
+  summary: 'Global country/device/browser/referrer breakdowns',
+  security: bearer,
+  responses: {
+    200: { description: 'Breakdowns', ...json(globalBreakdownsSchema) },
+    401: { description: 'Missing or invalid session', ...json(unauthorizedErrorSchema) },
   },
 });
 

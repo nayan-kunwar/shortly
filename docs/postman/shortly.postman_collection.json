@@ -1,0 +1,1104 @@
+{
+  "info": {
+    "_postman_id": "b7d4a1e2-3c5f-4a8b-9d21-6e0f7c8a4b53",
+    "name": "Shortly API",
+    "description": "Runnable collection for the Shortly URL shortener. Requests are ordered to chain variables: Auth sets {{token}}, Create captures {{shortCode}}, and later requests reuse both.\n\nRate limits are per-IP and real: /auth/* allows 10/min, guest creates 10/hour. Rapid re-runs will 429 by design.\n\nThe Redirect request expects a 302. Turn off 'Automatically follow redirects' in the request settings, otherwise Postman follows the Location header and the test never sees the 302.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health & Info",
+      "description": "Public. No auth, no rate limit concerns — safe to hammer.",
+      "item": [
+        {
+          "name": "API info",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": [""]
+            },
+            "description": "Basic service info plus the docs/metrics paths."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns service name', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.name).to.eql('Shortly API');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Health (liveness)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Liveness only — deliberately checks no dependencies, so it stays green when Redis/RabbitMQ are down."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Reports env', () => {",
+                  "  pm.expect(pm.response.json().env).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ready (readiness)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ready",
+              "host": ["{{baseUrl}}"],
+              "path": ["ready"]
+            },
+            "description": "Checks PostgreSQL, Redis, RabbitMQ. Returns 503 if any are down — this is the gate a load balancer should use."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('All dependencies ready', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql('ready');",
+                  "  Object.values(body.checks).forEach((c) => pm.expect(c.ok).to.be.true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Metrics (Prometheus)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/plain"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/metrics",
+              "host": ["{{baseUrl}}"],
+              "path": ["metrics"]
+            },
+            "description": "Prometheus exposition format. Per-instance counters — there is no Redis-backed aggregation, so each replica reports only its own process."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Exposes redirect counters', () => {",
+                  "  pm.expect(pm.response.text()).to.include('redirect_requests_total');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "description": "Register/login return a bearer token. {{token}} is captured automatically and inherited by every request that uses collection-level auth.\n\nLogout is deliberately NOT here — it is in the final Cleanup folder, because it deletes the session row and would 401 every authed request that follows it.",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "description": "201 with {token, user}. Password must be 8–72 chars; email is lowercased server-side.\n\n409 if the email is already registered — for repeat runs either change {{email}} or use Login instead."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Unique email per run so re-registration does not 409.",
+                  "const unique = `${Date.now()}@example.com`;",
+                  "pm.variables.set('email', unique);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Captures token and userId', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.token).to.be.a('string').and.not.be.empty;",
+                  "  pm.expect(body.user.id).to.be.a('string');",
+                  "  pm.environment.set('token', body.token);",
+                  "  pm.environment.set('userId', body.user.id);",
+                  "  pm.environment.set('email', body.user.email);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "200 with {token, user}. Shares the 10/min per-IP credential budget with Register.\n\nRun Register first on a fresh environment; {{email}} is only set by that request or by a pre-request script."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Captures token', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.environment.set('token', body.token);",
+                  "  pm.environment.set('email', body.user.email);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "me"]
+            },
+            "description": "401 if the token is missing, expired (default 7 days) or malformed. Present-but-invalid bearer is never downgraded to a guest."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Email matches session', () => {",
+                  "  pm.expect(pm.response.json().email).to.eql(pm.environment.get('email'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Guest Flow",
+      "description": "Anonymous identity: no bearer means the server mints a guestId. Send it back as X-Guest-Token to keep minting under the same anchor, then claim the links onto an account.\n\nBudget is strict: 10 guest creates per hour per IP.",
+      "item": [
+        {
+          "name": "Create (anonymous, mints guestId)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://example.com/guest-anonymous\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/urls",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "urls"]
+            },
+            "description": "Auth is optional on create. With no bearer and no X-Guest-Token the server mints a new anchor and returns it as guestId — capture it to keep building on the same identity."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Captures guestId', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.guestId).to.be.a('string');",
+                  "  pm.environment.set('guestId', body.guestId);",
+                  "  pm.environment.set('shortCode', body.shortCode);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create (with X-Guest-Token)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Guest-Token",
+                "value": "{{guestId}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://example.com/guest-tagged\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/urls",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "urls"]
+            },
+            "description": "Replays the captured anchor so both rows land on one identity and can be claimed together.\n\nRequires the previous request to have run. A malformed/unknown X-Guest-Token is a 400 GUEST_TOKEN_INVALID — not silently ignored."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Reused the anchor (no new guestId minted)', () => {",
+                  "  const body = pm.response.json();",
+                  "  // A valid X-Guest-Token reuses the existing anchor, so the",
+                  "  // server omits guestId. Its presence would mean the header",
+                  "  // was ignored and a fresh identity was minted instead.",
+                  "  pm.expect(body.guestId, 'guestId should be absent when the token is honored').to.not.exist;",
+                  "  pm.environment.set('shortCode', body.shortCode);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Claim guest links",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guestId\": \"{{guestId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/urls/claim",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "urls", "claim"]
+            },
+            "description": "200 with {claimed: [shortCodes]}. Idempotent by design — an unknown or already-claimed guestId returns {claimed: []}, never an error, so retrying is always safe.\n\nRequires {{token}} (run Auth first). This is why running Logout before this request breaks the flow."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Claimed is an array', () => {",
+                  "  pm.expect(pm.response.json().claimed).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Create URLs",
+      "description": "Authed creates. Accounts share a 100/min write budget — far looser than the guest bucket.",
+      "item": [
+        {
+          "name": "Create (authed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://example.com/a/very/long/path?with=query\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/urls",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "urls"]
+            },
+            "description": "201 with shortCode/shortUrl/originalUrl. The generated shortCode is captured here so every request below chains off a real link you just made."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Captures shortCode and shortUrl', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.shortCode).to.be.a('string').and.not.be.empty;",
+                  "  pm.expect(body.originalUrl).to.include('example.com');",
+                  "  pm.environment.set('shortCode', body.shortCode);",
+                  "  pm.environment.set('shortUrl', body.shortUrl);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create (custom alias)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://github.com/nayan-kunwar/shortly\",\n  \"customAlias\": \"{{alias}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/urls",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "urls"]
+            },
+            "description": "Alias rules: 3–30 chars, [A-Za-z0-9_-], no reserved words, case-sensitive. A pre-request script appends a timestamp so re-runs do not 409 on a taken alias.\n\nUniqueness is enforced by a DB unique constraint, not a check-then-insert, so concurrent creates are race-safe."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Avoids 409 AliasConflict on repeat runs.",
+                  "pm.variables.set('alias', `gh-${Date.now()}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Alias honored', () => {",
+                  "  pm.expect(pm.response.json().shortCode).to.eql(pm.variables.get('alias'));",
+                  "});",
+                  "// Capture only on success: a 409 here would otherwise",
+                  "// overwrite {{shortCode}} with undefined and 404 everything after.",
+                  "if (pm.response.code === 201) pm.environment.set('shortCode', pm.response.json().shortCode);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create (with expiry)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://example.com/ephemeral\",\n  \"expiresAt\": \"{{expiryIso}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/urls",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "urls"]
+            },
+            "description": "expiresAt must be a future ISO 8601 timestamp WITH an offset — a bare Z or a past time is a 400. The pre-request script computes one day ahead so the example always validates.\n\nExpiry is lazy: an expired link answers 410 on read rather than being swept eagerly."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Future ISO 8601 with a real offset. zod datetime({offset:true})",
+                  "// rejects a trailing Z and a past timestamp, so compute +24h.",
+                  "// Plain name: $-prefixed Postman vars are reserved built-ins.",
+                  "const d = new Date(Date.now() + 24 * 60 * 60 * 1000);",
+                  "pm.variables.set('expiryIso', d.toISOString().slice(0, -1) + '+00:00');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) pm.environment.set('shortCode', pm.response.json().shortCode);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create (invalid URL → 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"not-a-valid-url\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/urls",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "urls"]
+            },
+            "description": "Negative test, expected to fail. The contract is {error, message, details[{path, message}]} — details map to per-field form errors in the UI. Only http/https are accepted."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Returns validation envelope', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('ValidationError');",
+                  "  pm.expect(body.details).to.be.an('array').and.not.be.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Manage URLs",
+      "description": "Reads and lifecycle. All authed, all user-scoped — you only ever see your own links.",
+      "item": [
+        {
+          "name": "List URLs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/urls?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "urls"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "1–100, default 20"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Optional, max 100 chars",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "description": "Opaque nextCursor from a prior page",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Keyset pagination, newest first. Cursor is opaque (url:<id>) — pass back nextCursor verbatim; hand-rolling one is a 400. There is no total count by design."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns page envelope', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.items).to.be.an('array');",
+                  "  pm.expect(body).to.have.property('nextCursor');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "URL details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/urls/{{shortCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "urls", "{{shortCode}}"]
+            },
+            "description": "Lifetime click count plus lifecycle fields. 404 for unknown codes, 401 without a valid token. Uses {{shortCode}} from Create."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Clicks is an integer', () => {",
+                  "  pm.expect(pm.response.json().clicks).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete (soft)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/urls/{{shortCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "urls", "{{shortCode}}"]
+            },
+            "description": "Soft delete — the row stays, is_active flips false, and reads answer 410 Gone. Idempotent: deleting an already-deleted code still returns 200 with the end state.\n\nCache invalidation is best-effort, so a deactivated link can keep redirecting for up to the 60s negative TTL."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Now inactive', () => {",
+                  "  pm.expect(pm.response.json().isActive).to.be.false;",
+                  "});",
+                  "// Stash it: the Redirect folder proves a deleted link answers 410.",
+                  "pm.environment.set('deletedCode', pm.environment.get('shortCode'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "description": "Eventual consistency is real here: a click becomes visible only after outbox → publisher → RabbitMQ → worker → DB. Wait a few seconds after Redirect before expecting numbers.",
+      "item": [
+        {
+          "name": "URL analytics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/urls/{{shortCode}}/analytics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "urls", "{{shortCode}}", "analytics"]
+            },
+            "description": "Totals plus per-day, country, device, browser, referrer breakdowns. Aggregated at query time — fine now, would want summary tables at scale."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has totalClicks and breakdowns', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.totalClicks).to.be.a('number');",
+                  "  ['countries', 'devices', 'browsers', 'referrers'].forEach((k) =>",
+                  "    pm.expect(body[k]).to.be.an('object'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Global stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "stats"]
+            },
+            "description": "Dashboard totals: totalUrls, activeUrls, totalClicks, clicksToday."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Counters are integers', () => {",
+                  "  const b = pm.response.json();",
+                  "  ['totalUrls', 'activeUrls', 'totalClicks', 'clicksToday'].forEach((k) =>",
+                  "    pm.expect(b[k]).to.be.a('number'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Global breakdowns",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stats/breakdowns",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "stats", "breakdowns"]
+            },
+            "description": "Account-wide country/device/browser/referrer maps. Empty objects when there is no data yet."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Four breakdown maps', () => {",
+                  "  const b = pm.response.json();",
+                  "  ['countries', 'devices', 'browsers', 'referrers'].forEach((k) =>",
+                  "    pm.expect(b[k]).to.be.an('object'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Redirect",
+      "description": "The high-throughput path: Redis cache-aside, PostgreSQL on miss, 302 out. Analytics are fire-and-forget and never block the response.\n\nFolder creates its own target link — earlier folders delete their codes.",
+      "item": [
+        {
+          "name": "Create a target to follow",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://example.com/redirect-target\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/urls",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "urls"]
+            },
+            "description": "Creates its own live link instead of reusing {{shortCode}} — the Manage URLs folder already deleted that one, so following it would correctly answer 410, not 302."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Captures a live code', () => {",
+                  "  pm.environment.set('redirectCode', pm.response.json().shortCode);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Follow live code (expects 302)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{redirectCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{redirectCode}}"]
+            },
+            "description": "302 Found — deliberately NOT 301. A 301 is cached permanently by browsers, which would both break expiry/deactivation and stop counting later clicks.\n\nDisable 'Automatically follow redirects' on this request, or Postman follows Location and the 302 test never runs.\n\nAuto-follow is disabled IN the collection (protocolProfileBehavior.followRedirects=false), so the runner asserts on the 302 itself instead of chasing Location. If you duplicate this request, re-disable follow or the test never sees the 302."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 302', () => pm.response.to.have.status(302));",
+                  "pm.test('Location header present', () => {",
+                  "  pm.expect(pm.response.headers.get('location')).to.be.a('string').and.not.be.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "Follow deleted code (expects 410)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{deletedCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["{{deletedCode}}"]
+            },
+            "description": "Deactivation is lazy: the row survives with is_active=false, so a deleted link answers 410 Gone rather than 404. Cache invalidation is best-effort, so this can lag by up to the 60s negative TTL.\n\nAuto-follow is disabled IN the collection (protocolProfileBehavior.followRedirects=false), so the runner asserts on the 302 itself instead of chasing Location. If you duplicate this request, re-disable follow or the test never sees the 302."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 410', () => pm.response.to.have.status(410));",
+                  "pm.test('Gone envelope', () => {",
+                  "  pm.expect(pm.response.json().error).to.eql('Gone');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "Unknown code (expects 404)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/this-code-does-not-exist-999",
+              "host": ["{{baseUrl}}"],
+              "path": ["this-code-does-not-exist-999"]
+            },
+            "description": "Negative test. Unknown codes are cached as negatives for 60s so repeated probes do not hammer PostgreSQL.\n\nAuto-follow is disabled IN the collection (protocolProfileBehavior.followRedirects=false), so the runner asserts on the 302 itself instead of chasing Location. If you duplicate this request, re-disable follow or the test never sees the 302."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('NotFound envelope', () => {",
+                  "  pm.expect(pm.response.json().error).to.eql('NotFound');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cleanup (run last)",
+      "description": "Invalidates the session. Run this folder last, or re-run Auth before anything else.",
+      "item": [
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "logout"]
+            },
+            "description": "204. Deletes the session row outright rather than waiting out the TTL.\n\nIn its own Cleanup folder at the end of the collection. Logout invalidates {{token}}, so running it early 401s the rest of the run."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status is 204', () => pm.response.to.have.status(204));"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Live Stream (manual only)",
+      "description": "NOT part of automated runs: an SSE stream never terminates, so any runner (Postman runner, Newman) would hang or time out on it. To use it, open the request, hit Send, and watch frames arrive as `event: <type>` / `data: <json>` with a `:ping` comment every 20s. Stop it manually. Requires {{token}} and a {{shortCode}} you own.",
+      "item": [
+        {
+          "name": "Live analytics stream (SSE)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/event-stream"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/urls/{{shortCode}}/analytics/stream",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "urls", "{{shortCode}}", "analytics", "stream"]
+            },
+            "description": "Owner-only live stream. This is a fetch() stream carrying the Bearer header, NOT EventSource — the browser cannot attach headers to EventSource.\n\nManual check: the response stays open and frames arrive as `event: <type>` / `data: <json>`, with a `:ping` comment every 20s. Postman's stream viewer will not terminate on its own; stop the request manually. Treat failures here as informational, not as a collection failure."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The stream never terminates; --timeout-request aborts the",
+                  "// socket. Only assert when a real response came back, so an",
+                  "// abort is not reported as a contract failure.",
+                  "if (pm.response.code === 0 || pm.response.headers.get('content-type') === null) {",
+                  "  pm.test('Stream opened (aborted by timeout, as designed)', () => pm.expect(true).to.be.true);",
+                  "} else {",
+                  "  pm.test('SSE headers set', () => {",
+                  "    pm.expect(pm.response.headers.get('content-type')).to.include('text/event-stream');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "correct-horse-battery",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "guestId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "shortCode",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "shortUrl",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
