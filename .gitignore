@@ -7,6 +7,12 @@ coverage/
 .DS_Store
 Thumbs.db
 
+# MSYS2/Git Bash crash dumps
+*.stackdump
+
+# Personal interview prep notes — never committed
+docs/interview/
+
 # Next.js
 .next/
 out/
